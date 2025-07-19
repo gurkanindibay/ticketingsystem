@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using System.Security.Claims;
 using TicketingSystem.Authentication.Services;
 using TicketingSystem.Shared.DTOs;
@@ -32,12 +33,31 @@ namespace TicketingSystem.Authentication.Controllers
         /// <response code="200">Registration successful</response>
         /// <response code="400">Invalid registration data</response>
         /// <response code="409">User already exists</response>
+        /// <response code="429">Too many registration attempts</response>
         [HttpPost("register")]
+        [EnableRateLimiting("register")] // 5 attempts per hour (from config)
         [ProducesResponseType(typeof(ApiResponse<UserDto>), 200)]
         [ProducesResponseType(typeof(ApiResponse<string>), 400)]
         [ProducesResponseType(typeof(ApiResponse<string>), 409)]
+        [ProducesResponseType(typeof(ApiResponse<string>), 429)]
         public async Task<ActionResult<ApiResponse<UserDto>>> Register([FromBody] RegisterRequest request)
         {
+            // Security: Log registration attempt with IP address
+            var clientIp = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown";
+            _logger.LogInformation("Registration attempt from IP: {ClientIp}, Email: {Email}", clientIp, request.Email);
+
+            // Security: Basic input validation
+            if (string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.Password))
+            {
+                return BadRequest(ApiResponse<UserDto>.ErrorResponse("Email and password are required", "INVALID_INPUT"));
+            }
+
+            // Security: Email format validation
+            if (!IsValidEmail(request.Email))
+            {
+                return BadRequest(ApiResponse<UserDto>.ErrorResponse("Invalid email format", "INVALID_EMAIL"));
+            }
+
             if (!ModelState.IsValid)
             {
                 var errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList();
@@ -48,12 +68,34 @@ namespace TicketingSystem.Authentication.Controllers
             
             if (!result.Success)
             {
+                // Security: Log failed registration attempts
+                _logger.LogWarning("Registration failed for email: {Email}, IP: {ClientIp}, Errors: {Errors}", 
+                    request.Email, clientIp, string.Join(", ", result.Errors));
+                
                 return result.Errors.Any(e => e.Contains("already exists")) 
                     ? Conflict(result) 
                     : BadRequest(result);
             }
 
+            // Security: Log successful registration (without sensitive data)
+            _logger.LogInformation("User registered successfully: {Email}, IP: {ClientIp}", request.Email, clientIp);
             return Ok(result);
+        }
+
+        /// <summary>
+        /// Validate email format
+        /// </summary>
+        private static bool IsValidEmail(string email)
+        {
+            try
+            {
+                var addr = new System.Net.Mail.MailAddress(email);
+                return addr.Address == email;
+            }
+            catch
+            {
+                return false;
+            }
         }
 
         /// <summary>
@@ -64,12 +106,19 @@ namespace TicketingSystem.Authentication.Controllers
         /// <response code="200">Login successful</response>
         /// <response code="400">Invalid credentials</response>
         /// <response code="401">Authentication failed</response>
+        /// <response code="429">Too many login attempts</response>
         [HttpPost("login")]
+        [EnableRateLimiting("login")] // 10 attempts per 15 minutes (from config)
         [ProducesResponseType(typeof(ApiResponse<AuthenticationResponse>), 200)]
         [ProducesResponseType(typeof(ApiResponse<string>), 400)]
         [ProducesResponseType(typeof(ApiResponse<string>), 401)]
+        [ProducesResponseType(typeof(ApiResponse<string>), 429)]
         public async Task<ActionResult<ApiResponse<AuthenticationResponse>>> Login([FromBody] LoginRequest request)
         {
+            // Security: Log login attempt with IP address
+            var clientIp = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown";
+            _logger.LogInformation("Login attempt from IP: {ClientIp}, Email: {Email}", clientIp, request.Email);
+
             if (!ModelState.IsValid)
             {
                 var errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList();
@@ -80,11 +129,17 @@ namespace TicketingSystem.Authentication.Controllers
             
             if (!result.Success)
             {
+                // Security: Log failed login attempts (potential brute force)
+                _logger.LogWarning("Login failed for email: {Email}, IP: {ClientIp}, Errors: {Errors}", 
+                    request.Email, clientIp, string.Join(", ", result.Errors));
+                
                 return result.Errors.Any(e => e.Contains("INVALID_CREDENTIALS")) 
                     ? Unauthorized(result) 
                     : BadRequest(result);
             }
 
+            // Security: Log successful login (without sensitive data)
+            _logger.LogInformation("User logged in successfully: {Email}, IP: {ClientIp}", request.Email, clientIp);
             return Ok(result);
         }
 
@@ -96,10 +151,13 @@ namespace TicketingSystem.Authentication.Controllers
         /// <response code="200">Token refresh successful</response>
         /// <response code="400">Invalid refresh token</response>
         /// <response code="401">Refresh token expired or revoked</response>
+        /// <response code="429">Too many refresh attempts</response>
         [HttpPost("refresh")]
+        [EnableRateLimiting("refresh")] // 20 attempts per 5 minutes (from config)
         [ProducesResponseType(typeof(ApiResponse<AuthenticationResponse>), 200)]
         [ProducesResponseType(typeof(ApiResponse<string>), 400)]
         [ProducesResponseType(typeof(ApiResponse<string>), 401)]
+        [ProducesResponseType(typeof(ApiResponse<string>), 429)]
         public async Task<ActionResult<ApiResponse<AuthenticationResponse>>> RefreshToken([FromBody] RefreshTokenRequest request)
         {
             if (!ModelState.IsValid)

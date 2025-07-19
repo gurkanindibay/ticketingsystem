@@ -3,6 +3,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.AspNetCore.RateLimiting;
+using System.Threading.RateLimiting;
 using System.Reflection;
 using System.Text;
 using TicketingSystem.Shared.Data;
@@ -83,6 +85,81 @@ builder.Services.AddAuthentication(options =>
 // Register application services
 builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddScoped<IUserService, UserService>();
+
+// Built-in .NET Rate Limiting
+builder.Services.AddRateLimiter(options =>
+{
+    // Registration rate limiting: 5 per hour per IP
+    options.AddPolicy("register", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: partition => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = int.Parse(builder.Configuration["RateLimiting:Registration:MaxAttempts"] ?? "5"),
+                Window = TimeSpan.FromMinutes(int.Parse(builder.Configuration["RateLimiting:Registration:WindowMinutes"] ?? "60")),
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                QueueLimit = 0 // No queuing
+            }));
+
+    // Login rate limiting: 10 per 15 minutes per IP
+    options.AddPolicy("login", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: partition => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = int.Parse(builder.Configuration["RateLimiting:Login:MaxAttempts"] ?? "10"),
+                Window = TimeSpan.FromMinutes(int.Parse(builder.Configuration["RateLimiting:Login:WindowMinutes"] ?? "15")),
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                QueueLimit = 0
+            }));
+
+    // Refresh token rate limiting: 20 per 5 minutes per IP
+    options.AddPolicy("refresh", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: partition => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = int.Parse(builder.Configuration["RateLimiting:Refresh:MaxAttempts"] ?? "20"),
+                Window = TimeSpan.FromMinutes(int.Parse(builder.Configuration["RateLimiting:Refresh:WindowMinutes"] ?? "5")),
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                QueueLimit = 0
+            }));
+
+    // Global fallback - applies to endpoints without specific rate limiting
+    options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: partition => new FixedWindowRateLimiterOptions
+            {
+                AutoReplenishment = true,
+                PermitLimit = 100, // 100 requests per minute as global limit
+                QueueLimit = 0,
+                Window = TimeSpan.FromMinutes(1)
+            }));
+
+    // Rejection response
+    options.RejectionStatusCode = 429;
+    options.OnRejected = async (context, cancellationToken) =>
+    {
+        var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
+        var clientIp = context.HttpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown";
+        
+        logger.LogWarning("Rate limit exceeded for IP: {ClientIp}, Endpoint: {Endpoint}", 
+            clientIp, context.HttpContext.Request.Path);
+
+        context.HttpContext.Response.StatusCode = 429;
+        context.HttpContext.Response.ContentType = "application/json";
+        
+        var response = System.Text.Json.JsonSerializer.Serialize(new
+        {
+            success = false,
+            message = "Too many requests. Please try again later.",
+            errorCode = "RATE_LIMIT_EXCEEDED"
+        });
+        
+        await context.HttpContext.Response.WriteAsync(response, cancellationToken);
+    };
+});
 
 // Add services to the container.
 builder.Services.AddControllers();
@@ -179,6 +256,7 @@ else
 }
 
 app.UseAuthentication();
+app.UseRateLimiter(); // Add rate limiting middleware
 app.UseAuthorization();
 
 app.MapControllers();
