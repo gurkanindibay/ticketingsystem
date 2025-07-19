@@ -1,18 +1,18 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using TicketingSystem.Shared.Models;
 
 namespace TicketingSystem.Shared.Data
 {
     /// <summary>
-    /// Main database context for PostgreSQL
+    /// Main database context for PostgreSQL with Identity support
     /// </summary>
-    public class TicketingDbContext : DbContext
+    public class TicketingDbContext : IdentityDbContext<User>
     {
         public TicketingDbContext(DbContextOptions<TicketingDbContext> options) : base(options)
         {
         }
 
-        public DbSet<User> Users { get; set; }
         public DbSet<Event> Events { get; set; }
         public DbSet<EventTicket> EventTickets { get; set; }
         public DbSet<EventTicketTransaction> EventTicketTransactions { get; set; }
@@ -25,11 +25,10 @@ namespace TicketingSystem.Shared.Data
             // User configurations
             modelBuilder.Entity<User>(entity =>
             {
-                entity.HasIndex(e => e.Email).IsUnique();
-                entity.HasIndex(e => e.Username).IsUnique();
-                entity.Property(e => e.Email).IsRequired();
-                entity.Property(e => e.Username).IsRequired();
-                entity.Property(e => e.PasswordHash).IsRequired();
+                entity.Property(e => e.FirstName).HasMaxLength(100);
+                entity.Property(e => e.LastName).HasMaxLength(100);
+                entity.Property(e => e.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+                entity.Property(e => e.UpdatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
             });
 
             // Event configurations with B-tree index for location-based queries

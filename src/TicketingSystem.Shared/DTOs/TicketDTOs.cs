@@ -35,7 +35,7 @@ namespace TicketingSystem.Shared.DTOs
     public class TicketDto
     {
         public int Id { get; set; }
-        public int UserId { get; set; }
+        public string UserId { get; set; } = string.Empty;
         public int EventId { get; set; }
         public string EventName { get; set; } = string.Empty;
         public DateTime EventDate { get; set; }

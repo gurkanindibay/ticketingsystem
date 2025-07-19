@@ -1,4 +1,7 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
+using TicketingSystem.Authentication.Services;
 using TicketingSystem.Shared.DTOs;
 using TicketingSystem.Shared.Utilities;
 
@@ -12,40 +15,45 @@ namespace TicketingSystem.Authentication.Controllers
     [Produces("application/json")]
     public class AuthController : ControllerBase
     {
+        private readonly IUserService _userService;
+        private readonly ILogger<AuthController> _logger;
+
+        public AuthController(IUserService userService, ILogger<AuthController> logger)
+        {
+            _userService = userService;
+            _logger = logger;
+        }
+
         /// <summary>
         /// Register a new user
         /// </summary>
         /// <param name="request">User registration details</param>
-        /// <returns>Authentication response with JWT tokens</returns>
+        /// <returns>User registration response</returns>
         /// <response code="200">Registration successful</response>
         /// <response code="400">Invalid registration data</response>
         /// <response code="409">User already exists</response>
         [HttpPost("register")]
-        [ProducesResponseType(typeof(ApiResponse<AuthResponse>), 200)]
+        [ProducesResponseType(typeof(ApiResponse<UserDto>), 200)]
         [ProducesResponseType(typeof(ApiResponse<string>), 400)]
         [ProducesResponseType(typeof(ApiResponse<string>), 409)]
-        public async Task<ActionResult<ApiResponse<AuthResponse>>> Register([FromBody] RegisterUserRequest request)
+        public async Task<ActionResult<ApiResponse<UserDto>>> Register([FromBody] RegisterRequest request)
         {
-            // TODO: Implement user registration logic
-            await Task.Delay(100); // Simulate async operation
-            
-            var authResponse = new AuthResponse
+            if (!ModelState.IsValid)
             {
-                AccessToken = "sample_access_token",
-                RefreshToken = "sample_refresh_token",
-                ExpiresAt = DateTime.UtcNow.AddMinutes(15),
-                User = new UserDto
-                {
-                    Id = 1,
-                    Username = request.Username,
-                    Email = request.Email,
-                    FirstName = request.FirstName,
-                    LastName = request.LastName,
-                    CreatedAt = DateTime.UtcNow
-                }
-            };
+                var errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList();
+                return BadRequest(ApiResponse<UserDto>.ErrorResponse("Invalid registration data", errors));
+            }
 
-            return Ok(ApiResponse<AuthResponse>.SuccessResponse(authResponse, "User registered successfully"));
+            var result = await _userService.RegisterAsync(request);
+            
+            if (!result.Success)
+            {
+                return result.Errors.Any(e => e.Contains("already exists")) 
+                    ? Conflict(result) 
+                    : BadRequest(result);
+            }
+
+            return Ok(result);
         }
 
         /// <summary>
@@ -57,31 +65,27 @@ namespace TicketingSystem.Authentication.Controllers
         /// <response code="400">Invalid credentials</response>
         /// <response code="401">Authentication failed</response>
         [HttpPost("login")]
-        [ProducesResponseType(typeof(ApiResponse<AuthResponse>), 200)]
+        [ProducesResponseType(typeof(ApiResponse<AuthenticationResponse>), 200)]
         [ProducesResponseType(typeof(ApiResponse<string>), 400)]
         [ProducesResponseType(typeof(ApiResponse<string>), 401)]
-        public async Task<ActionResult<ApiResponse<AuthResponse>>> Login([FromBody] LoginRequest request)
+        public async Task<ActionResult<ApiResponse<AuthenticationResponse>>> Login([FromBody] LoginRequest request)
         {
-            // TODO: Implement user authentication logic
-            await Task.Delay(100); // Simulate async operation
-
-            var authResponse = new AuthResponse
+            if (!ModelState.IsValid)
             {
-                AccessToken = "sample_access_token",
-                RefreshToken = "sample_refresh_token",
-                ExpiresAt = DateTime.UtcNow.AddMinutes(15),
-                User = new UserDto
-                {
-                    Id = 1,
-                    Username = "sampleuser",
-                    Email = request.Email,
-                    FirstName = "John",
-                    LastName = "Doe",
-                    CreatedAt = DateTime.UtcNow.AddDays(-30)
-                }
-            };
+                var errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList();
+                return BadRequest(ApiResponse<AuthenticationResponse>.ErrorResponse("Invalid login data", errors));
+            }
 
-            return Ok(ApiResponse<AuthResponse>.SuccessResponse(authResponse, "Login successful"));
+            var result = await _userService.LoginAsync(request);
+            
+            if (!result.Success)
+            {
+                return result.Errors.Any(e => e.Contains("INVALID_CREDENTIALS")) 
+                    ? Unauthorized(result) 
+                    : BadRequest(result);
+            }
+
+            return Ok(result);
         }
 
         /// <summary>
@@ -93,31 +97,27 @@ namespace TicketingSystem.Authentication.Controllers
         /// <response code="400">Invalid refresh token</response>
         /// <response code="401">Refresh token expired or revoked</response>
         [HttpPost("refresh")]
-        [ProducesResponseType(typeof(ApiResponse<AuthResponse>), 200)]
+        [ProducesResponseType(typeof(ApiResponse<AuthenticationResponse>), 200)]
         [ProducesResponseType(typeof(ApiResponse<string>), 400)]
         [ProducesResponseType(typeof(ApiResponse<string>), 401)]
-        public async Task<ActionResult<ApiResponse<AuthResponse>>> RefreshToken([FromBody] RefreshTokenRequest request)
+        public async Task<ActionResult<ApiResponse<AuthenticationResponse>>> RefreshToken([FromBody] RefreshTokenRequest request)
         {
-            // TODO: Implement token refresh logic
-            await Task.Delay(100); // Simulate async operation
-
-            var authResponse = new AuthResponse
+            if (!ModelState.IsValid)
             {
-                AccessToken = "new_access_token",
-                RefreshToken = "new_refresh_token",
-                ExpiresAt = DateTime.UtcNow.AddMinutes(15),
-                User = new UserDto
-                {
-                    Id = 1,
-                    Username = "sampleuser",
-                    Email = "user@example.com",
-                    FirstName = "John",
-                    LastName = "Doe",
-                    CreatedAt = DateTime.UtcNow.AddDays(-30)
-                }
-            };
+                var errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList();
+                return BadRequest(ApiResponse<AuthenticationResponse>.ErrorResponse("Invalid refresh token data", errors));
+            }
 
-            return Ok(ApiResponse<AuthResponse>.SuccessResponse(authResponse, "Token refreshed successfully"));
+            var result = await _userService.RefreshTokenAsync(request);
+            
+            if (!result.Success)
+            {
+                return result.Errors.Any(e => e.Contains("INVALID_REFRESH_TOKEN") || e.Contains("INVALID_TOKEN")) 
+                    ? Unauthorized(result) 
+                    : BadRequest(result);
+            }
+
+            return Ok(result);
         }
 
         /// <summary>
@@ -128,14 +128,58 @@ namespace TicketingSystem.Authentication.Controllers
         /// <response code="200">Logout successful</response>
         /// <response code="400">Invalid refresh token</response>
         [HttpPost("logout")]
-        [ProducesResponseType(typeof(ApiResponse), 200)]
+        [ProducesResponseType(typeof(ApiResponse<bool>), 200)]
         [ProducesResponseType(typeof(ApiResponse<string>), 400)]
-        public async Task<ActionResult<ApiResponse>> Logout([FromBody] RefreshTokenRequest request)
+        public async Task<ActionResult<ApiResponse<bool>>> Logout([FromBody] LogoutRequest request)
         {
-            // TODO: Implement logout logic (revoke refresh token)
-            await Task.Delay(100); // Simulate async operation
+            if (!ModelState.IsValid)
+            {
+                var errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList();
+                return BadRequest(ApiResponse<bool>.ErrorResponse("Invalid logout data", errors));
+            }
 
-            return Ok(ApiResponse.SuccessResponse("Logout successful"));
+            var result = await _userService.LogoutAsync(request);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Get current user profile information
+        /// </summary>
+        /// <returns>Current user profile</returns>
+        /// <response code="200">User profile retrieved successfully</response>
+        /// <response code="401">User not authenticated</response>
+        /// <response code="404">User not found</response>
+        [HttpGet("profile")]
+        [Authorize]
+        [ProducesResponseType(typeof(ApiResponse<UserDto>), 200)]
+        [ProducesResponseType(typeof(ApiResponse<string>), 401)]
+        [ProducesResponseType(typeof(ApiResponse<string>), 404)]
+        public async Task<ActionResult<ApiResponse<UserDto>>> GetProfile()
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized(ApiResponse<UserDto>.ErrorResponse("User not authenticated", "NOT_AUTHENTICATED"));
+            }
+
+            var user = await _userService.GetUserByIdAsync(userId);
+            if (user == null)
+            {
+                return NotFound(ApiResponse<UserDto>.ErrorResponse("User not found", "USER_NOT_FOUND"));
+            }
+
+            var userDto = new UserDto
+            {
+                Id = user.Id,
+                Username = user.UserName!,
+                Email = user.Email!,
+                FirstName = user.FirstName,
+                LastName = user.LastName,
+                IsActive = user.IsActive,
+                CreatedAt = user.CreatedAt
+            };
+
+            return Ok(ApiResponse<UserDto>.SuccessResponse(userDto, "User profile retrieved successfully"));
         }
     }
 }

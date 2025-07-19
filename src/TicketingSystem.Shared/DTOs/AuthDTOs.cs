@@ -5,7 +5,7 @@ namespace TicketingSystem.Shared.DTOs
     /// <summary>
     /// User registration request DTO
     /// </summary>
-    public class RegisterUserRequest
+    public class RegisterRequest
     {
         [Required]
         [StringLength(100, MinimumLength = 3)]
@@ -33,6 +33,7 @@ namespace TicketingSystem.Shared.DTOs
     public class LoginRequest
     {
         [Required]
+        [EmailAddress]
         public string Email { get; set; } = string.Empty;
 
         [Required]
@@ -42,7 +43,7 @@ namespace TicketingSystem.Shared.DTOs
     /// <summary>
     /// Authentication response DTO
     /// </summary>
-    public class AuthResponse
+    public class AuthenticationResponse
     {
         public string AccessToken { get; set; } = string.Empty;
         public string RefreshToken { get; set; } = string.Empty;
@@ -55,11 +56,12 @@ namespace TicketingSystem.Shared.DTOs
     /// </summary>
     public class UserDto
     {
-        public int Id { get; set; }
+        public string Id { get; set; } = string.Empty;
         public string Username { get; set; } = string.Empty;
         public string Email { get; set; } = string.Empty;
         public string FirstName { get; set; } = string.Empty;
         public string LastName { get; set; } = string.Empty;
+        public bool IsActive { get; set; }
         public DateTime CreatedAt { get; set; }
     }
 
@@ -67,6 +69,18 @@ namespace TicketingSystem.Shared.DTOs
     /// Refresh token request DTO
     /// </summary>
     public class RefreshTokenRequest
+    {
+        [Required]
+        public string AccessToken { get; set; } = string.Empty;
+
+        [Required]
+        public string RefreshToken { get; set; } = string.Empty;
+    }
+
+    /// <summary>
+    /// Logout request DTO
+    /// </summary>
+    public class LogoutRequest
     {
         [Required]
         public string RefreshToken { get; set; } = string.Empty;

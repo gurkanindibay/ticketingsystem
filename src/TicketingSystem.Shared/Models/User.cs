@@ -1,28 +1,13 @@
 using System.ComponentModel.DataAnnotations;
+using Microsoft.AspNetCore.Identity;
 
 namespace TicketingSystem.Shared.Models
 {
     /// <summary>
-    /// User model for authentication and ticket purchases
+    /// User model for authentication and ticket purchases - inherits from IdentityUser
     /// </summary>
-    public class User
+    public class User : IdentityUser
     {
-        [Key]
-        public int Id { get; set; }
-
-        [Required]
-        [MaxLength(100)]
-        public string Username { get; set; } = string.Empty;
-
-        [Required]
-        [MaxLength(255)]
-        [EmailAddress]
-        public string Email { get; set; } = string.Empty;
-
-        [Required]
-        [MaxLength(255)]
-        public string PasswordHash { get; set; } = string.Empty; // BCrypt hash
-
         [MaxLength(100)]
         public string FirstName { get; set; } = string.Empty;
 

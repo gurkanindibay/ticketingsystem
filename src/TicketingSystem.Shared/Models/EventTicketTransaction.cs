@@ -26,7 +26,7 @@ namespace TicketingSystem.Shared.Models
         public int EventId { get; set; }
 
         [Required]
-        public int UserId { get; set; }
+        public string UserId { get; set; } = string.Empty;
 
         [Required]
         [MaxLength(128)]

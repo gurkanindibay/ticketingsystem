@@ -41,7 +41,7 @@ namespace TicketingSystem.Ticketing.Controllers
                 tickets.Add(new TicketDto
                 {
                     Id = new Random().Next(10000, 99999),
-                    UserId = 1, // TODO: Get from authenticated user
+                    UserId = "user_1", // TODO: Get from authenticated user
                     EventId = request.EventId,
                     EventName = "Sample Event",
                     EventDate = request.EventDate,
@@ -84,7 +84,7 @@ namespace TicketingSystem.Ticketing.Controllers
                 new TicketDto
                 {
                     Id = 12345,
-                    UserId = 1, // TODO: Get from authenticated user
+                    UserId = "user_1", // TODO: Get from authenticated user
                     EventId = 1,
                     EventName = "Rock Concert 2025",
                     EventDate = DateTime.UtcNow.AddDays(30),
@@ -95,7 +95,7 @@ namespace TicketingSystem.Ticketing.Controllers
                 new TicketDto
                 {
                     Id = 12346,
-                    UserId = 1, // TODO: Get from authenticated user
+                    UserId = "user_1", // TODO: Get from authenticated user
                     EventId = 2,
                     EventName = "Tech Conference 2025",
                     EventDate = DateTime.UtcNow.AddDays(45),
@@ -144,7 +144,7 @@ namespace TicketingSystem.Ticketing.Controllers
                 new TicketDto
                 {
                     Id = 12345,
-                    UserId = 1,
+                    UserId = "user_1",
                     EventId = 1,
                     EventName = "Rock Concert 2025",
                     EventDate = DateTime.UtcNow.AddDays(30),
