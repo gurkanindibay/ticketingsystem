@@ -84,6 +84,8 @@ This will start:
 - Events Service on port 5002 with Swagger UI at http://localhost:5002/swagger
 - Ticketing Service on port 5003 with Swagger UI at http://localhost:5003/swagger
 
+**Note:** Docker services use HTTP by default to avoid certificate issues. For HTTPS in development, use the local development setup.
+
 ### Development Setup
 
 1. Install .NET 9 SDK
@@ -99,17 +101,52 @@ dotnet restore
 dotnet build
 ```
 
-4. Run individual services:
+4. Set up HTTPS development certificates (optional):
+
+**Option A: Using PowerShell Script**
+```powershell
+# If execution policy allows
+.\setup-https.ps1
+
+# If you get execution policy error, use bypass
+PowerShell -ExecutionPolicy Bypass -File .\setup-https.ps1
+```
+
+**Option B: Using Batch File**
+```batch
+# Windows batch file (no execution policy issues)
+.\setup-https.bat
+```
+
+**Option C: Manual Commands**
+```bash
+# Clean existing certificates
+dotnet dev-certs https --clean
+
+# Create and trust new certificate
+dotnet dev-certs https --trust
+
+# Verify certificate
+dotnet dev-certs https --check --trust
+```
+
+5. Run individual services:
 
 ```bash
-# Authentication Service
+# Authentication Service (HTTP - Recommended for development)
 dotnet run --project src/TicketingSystem.Authentication
 
-# Events Service
+# Events Service (HTTP)
 dotnet run --project src/TicketingSystem.Events
 
-# Ticketing Service
+# Ticketing Service (HTTP)
 dotnet run --project src/TicketingSystem.Ticketing
+```
+
+**For HTTPS (if certificate setup successful):**
+```bash
+# Use the HTTPS profile
+dotnet run --project src/TicketingSystem.Authentication --launch-profile Development-HTTPS
 ```
 
 ## API Endpoints
@@ -204,6 +241,71 @@ TicketingSystem/
   - Ticketing: http://localhost:5003/swagger
 - **Health Check Endpoints:** Available on each service at `/health`
 - **RabbitMQ Management UI:** http://localhost:15672 (guest/guest)
+
+## Troubleshooting
+
+### PowerShell Execution Policy Issues
+
+If you encounter PowerShell execution policy errors:
+
+**Quick Fix:**
+```powershell
+# Use execution policy bypass for single script
+PowerShell -ExecutionPolicy Bypass -File .\setup-https.ps1
+```
+
+**Alternative Solutions:**
+```batch
+# Use the batch file instead
+.\setup-https.bat
+
+# Or run commands manually
+dotnet dev-certs https --clean
+dotnet dev-certs https --trust
+```
+
+**Permanent Fix (Optional):**
+```powershell
+# Set execution policy for current user (requires admin)
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+```
+
+### HTTPS Certificate Issues
+
+If you're experiencing HTTPS errors, follow these steps:
+
+**Option 1: Use HTTP (Recommended for Development)**
+```bash
+# Simply run the services - they default to HTTP in development
+dotnet run --project src/TicketingSystem.Authentication
+# Access via: http://localhost:5001/swagger
+```
+
+**Option 2: Fix HTTPS Certificates**
+```powershell
+# Run the setup script
+.\setup-https.ps1
+
+# Or manually:
+dotnet dev-certs https --clean
+dotnet dev-certs https --trust
+
+# Then use HTTPS profile
+dotnet run --project src/TicketingSystem.Authentication --launch-profile Development-HTTPS
+# Access via: https://localhost:7001/swagger
+```
+
+**Option 3: Check Certificate Status**
+```bash
+# Check if development certificate exists and is trusted
+dotnet dev-certs https --check --trust
+```
+
+### Common Solutions
+- **ERR_CERT_AUTHORITY_INVALID**: Run `dotnet dev-certs https --trust`
+- **Connection refused**: Make sure you're using the correct port and protocol
+- **Certificate errors in browser**: Clear browser cache and restart browser
+- **Still having issues**: Use HTTP endpoints instead - they work perfectly for development
 
 ## Contributing
 

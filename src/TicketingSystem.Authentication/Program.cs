@@ -75,9 +75,14 @@ if (app.Environment.IsDevelopment())
         c.EnableFilter();
         c.ShowExtensions();
     });
+    
+    // Disable HTTPS redirection in development for easier testing
+    // app.UseHttpsRedirection();
 }
-
-app.UseHttpsRedirection();
+else
+{
+    app.UseHttpsRedirection();
+}
 
 // Add authentication and authorization middleware here when implemented
 // app.UseAuthentication();
