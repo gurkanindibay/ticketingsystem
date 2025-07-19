@@ -17,11 +17,13 @@ namespace TicketingSystem.Authentication.Controllers
     public class AuthController : ControllerBase
     {
         private readonly IUserService _userService;
+        private readonly IAuthValidationService _validationService;
         private readonly ILogger<AuthController> _logger;
 
-        public AuthController(IUserService userService, ILogger<AuthController> logger)
+        public AuthController(IUserService userService, IAuthValidationService validationService, ILogger<AuthController> logger)
         {
             _userService = userService;
+            _validationService = validationService;
             _logger = logger;
         }
 
@@ -46,16 +48,13 @@ namespace TicketingSystem.Authentication.Controllers
             var clientIp = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown";
             _logger.LogInformation("Registration attempt from IP: {ClientIp}, Email: {Email}", clientIp, request.Email);
 
-            // Security: Basic input validation
-            if (string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.Password))
+            // Validate request using validation service
+            var validationResult = _validationService.ValidateRegistration(request);
+            if (!validationResult.IsValid)
             {
-                return BadRequest(ApiResponse<UserDto>.ErrorResponse("Email and password are required", "INVALID_INPUT"));
-            }
-
-            // Security: Email format validation
-            if (!IsValidEmail(request.Email))
-            {
-                return BadRequest(ApiResponse<UserDto>.ErrorResponse("Invalid email format", "INVALID_EMAIL"));
+                _logger.LogWarning("Registration validation failed for email: {Email}, IP: {ClientIp}, Errors: {Errors}", 
+                    request.Email, clientIp, string.Join(", ", validationResult.Errors));
+                return BadRequest(ApiResponse<UserDto>.ErrorResponse("Registration validation failed", validationResult.Errors));
             }
 
             if (!ModelState.IsValid)
@@ -83,22 +82,6 @@ namespace TicketingSystem.Authentication.Controllers
         }
 
         /// <summary>
-        /// Validate email format
-        /// </summary>
-        private static bool IsValidEmail(string email)
-        {
-            try
-            {
-                var addr = new System.Net.Mail.MailAddress(email);
-                return addr.Address == email;
-            }
-            catch
-            {
-                return false;
-            }
-        }
-
-        /// <summary>
         /// Authenticate a user and return JWT tokens
         /// </summary>
         /// <param name="request">User login credentials</param>
@@ -118,6 +101,15 @@ namespace TicketingSystem.Authentication.Controllers
             // Security: Log login attempt with IP address
             var clientIp = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown";
             _logger.LogInformation("Login attempt from IP: {ClientIp}, Email: {Email}", clientIp, request.Email);
+
+            // Validate request using validation service
+            var validationResult = _validationService.ValidateLogin(request);
+            if (!validationResult.IsValid)
+            {
+                _logger.LogWarning("Login validation failed for email: {Email}, IP: {ClientIp}, Errors: {Errors}", 
+                    request.Email, clientIp, string.Join(", ", validationResult.Errors));
+                return BadRequest(ApiResponse<AuthenticationResponse>.ErrorResponse("Login validation failed", validationResult.Errors));
+            }
 
             if (!ModelState.IsValid)
             {
@@ -160,6 +152,13 @@ namespace TicketingSystem.Authentication.Controllers
         [ProducesResponseType(typeof(ApiResponse<string>), 429)]
         public async Task<ActionResult<ApiResponse<AuthenticationResponse>>> RefreshToken([FromBody] RefreshTokenRequest request)
         {
+            // Validate request using validation service
+            var validationResult = _validationService.ValidateRefreshToken(request);
+            if (!validationResult.IsValid)
+            {
+                return BadRequest(ApiResponse<AuthenticationResponse>.ErrorResponse("Refresh token validation failed", validationResult.Errors));
+            }
+
             if (!ModelState.IsValid)
             {
                 var errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList();
@@ -190,6 +189,13 @@ namespace TicketingSystem.Authentication.Controllers
         [ProducesResponseType(typeof(ApiResponse<string>), 400)]
         public async Task<ActionResult<ApiResponse<bool>>> Logout([FromBody] LogoutRequest request)
         {
+            // Validate request using validation service
+            var validationResult = _validationService.ValidateLogout(request);
+            if (!validationResult.IsValid)
+            {
+                return BadRequest(ApiResponse<bool>.ErrorResponse("Logout validation failed", validationResult.Errors));
+            }
+
             if (!ModelState.IsValid)
             {
                 var errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList();

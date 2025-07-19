@@ -85,6 +85,7 @@ builder.Services.AddAuthentication(options =>
 // Register application services
 builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<IAuthValidationService, AuthValidationService>();
 
 // Built-in .NET Rate Limiting
 builder.Services.AddRateLimiter(options =>
