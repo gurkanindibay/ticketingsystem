@@ -36,6 +36,12 @@ The system consists of three main microservices:
 
 ## Key Features
 
+### API Documentation
+- **Swagger UI** integrated into all microservices
+- Interactive API documentation with JWT Bearer authentication
+- XML documentation comments for detailed endpoint descriptions
+- Request/response examples and validation rules
+
 ### Security
 - JWT token-based authentication
 - BCrypt password hashing
@@ -74,9 +80,9 @@ This will start:
 - PostgreSQL on port 5432
 - Redis on port 6379
 - RabbitMQ on ports 5672 (AMQP) and 15672 (Management UI)
-- Authentication Service on port 5001
-- Events Service on port 5002
-- Ticketing Service on port 5003
+- Authentication Service on port 5001 with Swagger UI at http://localhost:5001/swagger
+- Events Service on port 5002 with Swagger UI at http://localhost:5002/swagger
+- Ticketing Service on port 5003 with Swagger UI at http://localhost:5003/swagger
 
 ### Development Setup
 
@@ -110,24 +116,31 @@ dotnet run --project src/TicketingSystem.Ticketing
 
 ### Authentication Service (Port 5001)
 
+- **Swagger UI:** http://localhost:5001/swagger
 - `POST /api/auth/register` - User registration
 - `POST /api/auth/login` - User login
 - `POST /api/auth/refresh` - Refresh access token
 - `POST /api/auth/logout` - Logout user
+- `GET /health` - Health check endpoint
 
 ### Events Service (Port 5002)
 
+- **Swagger UI:** http://localhost:5002/swagger
 - `GET /api/events` - List events with filtering
 - `GET /api/events/{id}` - Get event details
 - `POST /api/events` - Create new event (authenticated)
 - `PUT /api/events/{id}` - Update event (authenticated)
 - `DELETE /api/events/{id}` - Delete event (authenticated)
+- `GET /health` - Health check endpoint
 
 ### Ticketing Service (Port 5003)
 
+- **Swagger UI:** http://localhost:5003/swagger
 - `POST /api/tickets/purchase` - Purchase tickets (authenticated)
 - `GET /api/tickets/user` - Get user's tickets (authenticated)
 - `GET /api/tickets/{transactionId}` - Get ticket details (authenticated)
+- `DELETE /api/tickets/{transactionId}` - Cancel ticket (authenticated)
+- `GET /health` - Health check endpoint
 
 ## Data Models
 
@@ -185,8 +198,12 @@ TicketingSystem/
 
 ## Monitoring and Health Checks
 
-- RabbitMQ Management UI: http://localhost:15672 (guest/guest)
-- Health check endpoints available on each service at `/health`
+- **Swagger UI:** Available on each service at `/swagger`
+  - Authentication: http://localhost:5001/swagger
+  - Events: http://localhost:5002/swagger  
+  - Ticketing: http://localhost:5003/swagger
+- **Health Check Endpoints:** Available on each service at `/health`
+- **RabbitMQ Management UI:** http://localhost:15672 (guest/guest)
 
 ## Contributing
 
