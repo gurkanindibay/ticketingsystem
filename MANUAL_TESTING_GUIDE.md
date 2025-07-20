@@ -51,9 +51,10 @@ curl -X POST http://localhost:5001/api/auth/login -H "Content-Type: application/
 Replace `YOUR_TOKEN_HERE` with the actual token from Step 3:
 
 ```bash
-curl -X GET http://localhost:5002/api/events -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJuYW1laWQiOiIyMzdjZDA3Ni00ZDY4LTRkY2ItYTQ0YS03Y2Y1ZTEwM2MzYTQiLCJ1bmlxdWVfbmFtZSI6InRlc3R1c2VyQGV4YW1wbGUuY29tIiwiZW1haWwiOiJ0ZXN0dXNlckBleGFtcGxlLmNvbSIsImZpcnN0TmFtZSI6InRlc3R1c2VyIiwibGFzdE5hbWUiOiJ0ZXN0dXNlciIsImlzQWN0aXZlIjoiVHJ1ZSIsInJvbGUiOiJVc2VyIiwibmJmIjoxNzUzMDIyOTc5LCJleHAiOjE3NTMwMjM4NzksImlhdCI6MTc1MzAyMjk3OSwiaXNzIjoiVGlja2V0aW5nU3lzdGVtIiwiYXVkIjoiVGlja2V0aW5nU3lzdGVtLlVzZXJzIn0.4Hg6eRsWSBoqEAsTrz7lyiWYXtYExhhsWLrfpruQpJw"
+curl -X GET http://localhost:5002/api/events -H "Authorization: Bearer YOUR_TOKEN_HERE"
 ```
 
+**Note**: The token in this example may be expired. Always use a fresh token from Step 3.
 **Expected Result**: JSON array of events
 
 ### Step 5: Test Event Management (New in Consolidated Service)

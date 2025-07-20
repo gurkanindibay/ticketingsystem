@@ -1,5 +1,6 @@
 using Microsoft.OpenApi.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.InMemory;
 using StackExchange.Redis;
 using RedLockNet;
 using RedLockNet.SERedis;
@@ -14,10 +15,21 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 builder.Services.AddHealthChecks();
 
-// Add Entity Framework Core with PostgreSQL
+// Database configuration - supports both in-memory and PostgreSQL
+var useInMemoryDatabase = builder.Configuration.GetSection("DatabaseSettings")["UseInMemoryDatabase"];
+
 builder.Services.AddDbContext<TicketingDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection") ?? 
-        "Host=localhost;Database=ticketingdb;Username=ticketinguser;Password=ticketingpass123"));
+{
+    if (string.Equals(useInMemoryDatabase, "true", StringComparison.OrdinalIgnoreCase))
+    {
+        options.UseInMemoryDatabase("TicketingSystemDb");
+    }
+    else
+    {
+        options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection") ?? 
+            "Host=localhost;Database=ticketingdb;Username=ticketinguser;Password=ticketingpass123");
+    }
+});
 
 // Configure Redis settings
 builder.Services.Configure<TicketingSystem.Shared.Configuration.RedisSettings>(
