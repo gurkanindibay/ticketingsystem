@@ -153,7 +153,7 @@ namespace TicketingSystem.Ticketing.Services
                 var eventEntity = new Event
                 {
                     Name = request.Name,
-                    Date = request.Date,
+                    Date = DateTime.SpecifyKind(request.Date, DateTimeKind.Utc),
                     Duration = request.Duration,
                     StartTime = request.StartTime,
                     EndTime = request.StartTime.Add(request.Duration),
