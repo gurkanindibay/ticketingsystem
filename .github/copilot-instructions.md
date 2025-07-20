@@ -59,3 +59,5 @@ This document outlines the requirements for a Ticketmaster-like ticketing servic
 - Always attempt manual coding first, then use Copilot for boilerplate (e.g., “Create .NET Core controller for ticket purchase”) or optimization (e.g., “Optimize C# hash table for HMACSHA512”).
 - Prompt Copilot to include HMACSHA512 for transaction IDs and Redlock for concurrency.
 - Ensure synchronous Redis/PostgreSQL updates for non-capacity operations and asynchronous RabbitMQ for capacity updates.
+- Store documentation inside docs/ directory, with clear filenames and descriptions.
+- Store scripts inside scripts/ directory, with clear filenames and descriptions.
