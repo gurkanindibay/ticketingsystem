@@ -15,6 +15,7 @@ namespace TicketingSystem.Ticketing.Services
     public class RabbitMQService : IRabbitMQService, IDisposable, IAsyncDisposable
     {
         private readonly RabbitMQSettings _settings;
+        private readonly IMessageStatsService _messageStatsService;
         private readonly ILogger<RabbitMQService> _logger;
         private IConnection? _connection;
         private IChannel? _channel;
@@ -27,9 +28,10 @@ namespace TicketingSystem.Ticketing.Services
         private const string DEAD_LETTER_EXCHANGE = "ticket.dead.letter";
         private const string DEAD_LETTER_QUEUE = "ticket.dead.letter.queue";
 
-        public RabbitMQService(IOptions<RabbitMQSettings> settings, ILogger<RabbitMQService> logger)
+        public RabbitMQService(IOptions<RabbitMQSettings> settings, IMessageStatsService messageStatsService, ILogger<RabbitMQService> logger)
         {
             _settings = settings.Value;
+            _messageStatsService = messageStatsService;
             _logger = logger;
         }
 
@@ -198,6 +200,9 @@ namespace TicketingSystem.Ticketing.Services
                     body: body
                 );
 
+                // Track published message statistics
+                _messageStatsService.RecordMessagePublished(CAPACITY_UPDATE_QUEUE, "CapacityUpdate");
+
                 _logger.LogDebug("Published capacity update message for event {EventId}, change {Change}, transaction {TransactionId}",
                     message.EventId, message.CapacityChange, message.TransactionId);
             }
@@ -252,6 +257,9 @@ namespace TicketingSystem.Ticketing.Services
                     basicProperties: properties,
                     body: body
                 );
+
+                // Track published message statistics
+                _messageStatsService.RecordMessagePublished(TRANSACTION_QUEUE, "TicketTransaction");
 
                 _logger.LogDebug("Published transaction message for transaction {TransactionId}, event {EventId}",
                     message.TransactionId, message.EventId);

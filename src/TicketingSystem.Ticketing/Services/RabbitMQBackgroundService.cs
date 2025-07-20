@@ -85,16 +85,32 @@ namespace TicketingSystem.Ticketing.Services
 
                     try
                     {
+                        var processingStartTime = DateTime.UtcNow;
                         using var scope = _serviceProvider.CreateScope();
                         var ticketService = scope.ServiceProvider.GetRequiredService<ITicketService>();
+                        var messageStatsService = scope.ServiceProvider.GetRequiredService<IMessageStatsService>();
 
                         // Process the capacity update in the database
                         await ProcessCapacityUpdateAsync(message, scope.ServiceProvider);
+
+                        // Record successful processing
+                        var processingTime = DateTime.UtcNow - processingStartTime;
+                        messageStatsService.RecordMessageProcessed("ticket.capacity.updates", "CapacityUpdate", true, processingTime);
 
                         _logger.LogInformation("Successfully processed capacity update for Event {EventId}", message.EventId);
                     }
                     catch (Exception ex)
                     {
+                        // Record failed processing
+                        try
+                        {
+                            var processingTime = DateTime.UtcNow - DateTime.UtcNow; // Will be near zero for failed processing
+                            using var scope = _serviceProvider.CreateScope();
+                            var messageStatsService = scope.ServiceProvider.GetRequiredService<IMessageStatsService>();
+                            messageStatsService.RecordMessageProcessed("ticket.capacity.updates", "CapacityUpdate", false, processingTime);
+                        }
+                        catch { /* Ignore stats recording errors */ }
+
                         _logger.LogError(ex, "Failed to process capacity update message for Event {EventId}", message.EventId);
                         throw; // This will trigger retry logic in RabbitMQ
                     }
@@ -123,15 +139,31 @@ namespace TicketingSystem.Ticketing.Services
 
                     try
                     {
+                        var processingStartTime = DateTime.UtcNow;
                         using var scope = _serviceProvider.CreateScope();
+                        var messageStatsService = scope.ServiceProvider.GetRequiredService<IMessageStatsService>();
 
                         // Process the transaction message
                         await ProcessTransactionMessageAsync(message, scope.ServiceProvider);
+
+                        // Record successful processing
+                        var processingTime = DateTime.UtcNow - processingStartTime;
+                        messageStatsService.RecordMessageProcessed("ticket.transactions", "TicketTransaction", true, processingTime);
 
                         _logger.LogInformation("Successfully processed transaction message {TransactionId}", message.TransactionId);
                     }
                     catch (Exception ex)
                     {
+                        // Record failed processing
+                        try
+                        {
+                            var processingTime = DateTime.UtcNow - DateTime.UtcNow; // Will be near zero for failed processing
+                            using var scope = _serviceProvider.CreateScope();
+                            var messageStatsService = scope.ServiceProvider.GetRequiredService<IMessageStatsService>();
+                            messageStatsService.RecordMessageProcessed("ticket.transactions", "TicketTransaction", false, processingTime);
+                        }
+                        catch { /* Ignore stats recording errors */ }
+
                         _logger.LogError(ex, "Failed to process transaction message {TransactionId}", message.TransactionId);
                         throw; // This will trigger retry logic in RabbitMQ
                     }

@@ -54,25 +54,68 @@ Example response:
 
 ### Architecture Summary
 ```
-Ticket Purchase Flow:
-┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│   HTTP Request  │───▶│  TicketService   │───▶│   PostgreSQL    │
-└─────────────────┘    └──────────────────┘    └─────────────────┘
-                                │
-                                ▼
-                       ┌──────────────────┐
-                       │   RabbitMQ Pub   │
-                       └──────────────────┘
-                                │
-                                ▼
-                       ┌──────────────────┐
-                       │Background Service│
-                       └──────────────────┘
-                                │
-                                ▼
-                       ┌──────────────────┐
-                       │   Redis Cache    │
-                       └──────────────────┘
+Complete Ticket Purchase Flow with All Data Updates:
+
+┌─────────────────┐    ┌──────────────────────────────────────────────────────────┐
+│   HTTP Request  │───▶│                  TicketService                           │
+└─────────────────┘    │  1. Validate Event & Capacity                           │
+                       │  2. Process Payment                                      │
+                       │  3. Create Tickets & Transactions                       │
+                       │  4. Update Event Capacity                               │
+                       └──────────────────────────────────────────────────────────┘
+                                                │
+                                                ▼
+                       ┌──────────────────────────────────────────────────────────┐
+                       │              Synchronous Updates                         │
+                       │                                                          │
+                       │  ┌─────────────────┐         ┌─────────────────────┐    │
+                       │  │   PostgreSQL    │         │      Redis          │    │
+                       │  │                 │         │                     │    │
+                       │  │ • Event         │◄───────▶│ • Event (updated)   │    │
+                       │  │ • EventTicket   │         │ • EventTicket       │    │
+                       │  │ • Transaction   │         │ • Transaction       │    │
+                       │  └─────────────────┘         └─────────────────────┘    │
+                       └──────────────────────────────────────────────────────────┘
+                                                │
+                                                ▼
+                       ┌──────────────────────────────────────────────────────────┐
+                       │              RabbitMQ Publishing                         │
+                       │                                                          │
+                       │  ┌─────────────────────┐    ┌─────────────────────┐     │
+                       │  │  Capacity Updates   │    │   Transactions      │     │
+                       │  │  Queue              │    │   Queue             │     │
+                       │  │                     │    │                     │     │
+                       │  │ • Event Capacity    │    │ • Transaction Info  │     │
+                       │  │ • Transaction ID    │    │ • Audit Trail       │     │
+                       │  └─────────────────────┘    └─────────────────────┘     │
+                       └──────────────────────────────────────────────────────────┘
+                                                │
+                                                ▼
+                       ┌──────────────────────────────────────────────────────────┐
+                       │            Background Service Processing                 │
+                       │                                                          │
+                       │  ┌─────────────────────┐    ┌─────────────────────┐     │
+                       │  │  Capacity Consumer  │    │ Transaction Consumer│     │
+                       │  │                     │    │                     │     │
+                       │  │ • Process capacity  │    │ • Process audit     │     │
+                       │  │   changes           │    │   messages          │     │
+                       │  │ • Update PostgreSQL │    │ • Log transactions  │     │
+                       │  │ • Update Redis      │    │ • Update Redis      │     │
+                       │  └─────────────────────┘    └─────────────────────┘     │
+                       └──────────────────────────────────────────────────────────┘
+                                                │
+                                                ▼
+                       ┌──────────────────────────────────────────────────────────┐
+                       │          Final State Consistency                         │
+                       │                                                          │
+                       │  ┌─────────────────┐         ┌─────────────────────┐    │
+                       │  │   PostgreSQL    │         │      Redis          │    │
+                       │  │   (Updated)     │         │    (Refreshed)      │    │
+                       │  │                 │         │                     │    │
+                       │  │ • Event.Capacity│◄───────▶│ • Event.Capacity    │    │
+                       │  │   (Final State) │         │   (Synchronized)    │    │
+                       │  └─────────────────┘         └─────────────────────┘    │
+                       └──────────────────────────────────────────────────────────┘
 ```
 
 ### Resolution Summary

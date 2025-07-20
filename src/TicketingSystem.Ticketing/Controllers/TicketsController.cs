@@ -253,5 +253,53 @@ namespace TicketingSystem.Ticketing.Controllers
                 return StatusCode(500, ApiResponse.ErrorResponse("Error retrieving queue status"));
             }
         }
+
+        /// <summary>
+        /// Get message processing statistics for monitoring
+        /// </summary>
+        /// <returns>Detailed message processing statistics</returns>
+        [HttpGet("admin/message-stats")]
+        public ActionResult<ApiResponse<MessageStatsReport>> GetMessageStats()
+        {
+            try
+            {
+                var stats = _messageStatsService.GetStats();
+                return Ok(new ApiResponse<MessageStatsReport>
+                {
+                    Success = true,
+                    Data = stats,
+                    Message = "Message statistics retrieved"
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving message statistics");
+                return StatusCode(500, ApiResponse.ErrorResponse("Error retrieving message statistics"));
+            }
+        }
+
+        /// <summary>
+        /// Reset message processing statistics
+        /// </summary>
+        /// <returns>Confirmation of reset</returns>
+        [HttpPost("admin/message-stats/reset")]
+        public ActionResult<ApiResponse<string>> ResetMessageStats()
+        {
+            try
+            {
+                _messageStatsService.ResetStats();
+                return Ok(new ApiResponse<string>
+                {
+                    Success = true,
+                    Data = "Statistics reset successfully",
+                    Message = "Message statistics have been reset"
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error resetting message statistics");
+                return StatusCode(500, ApiResponse.ErrorResponse("Error resetting message statistics"));
+            }
+        }
     }
 }
