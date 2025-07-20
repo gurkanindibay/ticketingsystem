@@ -171,8 +171,8 @@ namespace TicketingSystem.Ticketing.Services
                 await _context.SaveChangesAsync();
                 _logger.LogInformation("SaveChangesAsync completed successfully");
 
-                // Cache the new event - temporarily disabled for debugging
-                // await _redisService.SetEventAsync(eventEntity);
+                // Cache the new event 
+                await _redisService.SetEventAsync(eventEntity);
 
                 _logger.LogInformation("Event created: {EventId} - {EventName}", eventEntity.Id, eventEntity.Name);
                 return MapToDto(eventEntity, request.Capacity);
