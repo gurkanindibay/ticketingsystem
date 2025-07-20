@@ -20,9 +20,10 @@ namespace TicketingSystem.Shared.Models
 
         public bool IsActive { get; set; } = true;
 
-        // Navigation properties
-        public virtual ICollection<EventTicket> EventTickets { get; set; } = new List<EventTicket>();
-        public virtual ICollection<EventTicketTransaction> EventTicketTransactions { get; set; } = new List<EventTicketTransaction>();
+        // Navigation properties - only Authentication service entities
         public virtual ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();
+        
+        // Note: EventTickets and EventTicketTransactions are in Ticketing service
+        // Use UserId string property for cross-service references
     }
 }

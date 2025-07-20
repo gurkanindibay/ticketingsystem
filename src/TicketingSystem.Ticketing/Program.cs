@@ -7,7 +7,7 @@ using RedLockNet.SERedis;
 using RedLockNet.SERedis.Configuration;
 using System.Reflection;
 using TicketingSystem.Ticketing.Services;
-using TicketingSystem.Shared.Data;
+using TicketingSystem.Ticketing.Data;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -27,7 +27,8 @@ builder.Services.AddDbContext<TicketingDbContext>(options =>
     else
     {
         options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection") ?? 
-            "Host=localhost;Database=ticketingdb;Username=ticketinguser;Password=ticketingpass123");
+            "Host=localhost;Database=ticketingdb;Username=ticketinguser;Password=ticketingpass123",
+            b => b.MigrationsAssembly("TicketingSystem.Ticketing"));
     }
 });
 

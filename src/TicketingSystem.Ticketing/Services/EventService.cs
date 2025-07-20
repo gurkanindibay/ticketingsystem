@@ -1,5 +1,5 @@
 using Microsoft.EntityFrameworkCore;
-using TicketingSystem.Shared.Data;
+using TicketingSystem.Ticketing.Data;
 using TicketingSystem.Shared.DTOs;
 using TicketingSystem.Shared.Models;
 

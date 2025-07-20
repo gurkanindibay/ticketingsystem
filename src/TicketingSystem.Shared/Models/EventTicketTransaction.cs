@@ -45,10 +45,7 @@ namespace TicketingSystem.Shared.Models
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
         // Navigation properties
-        [ForeignKey("EventId")]
         public virtual Event Event { get; set; } = null!;
-
-        [ForeignKey("UserId")]
         public virtual User User { get; set; } = null!;
     }
 }

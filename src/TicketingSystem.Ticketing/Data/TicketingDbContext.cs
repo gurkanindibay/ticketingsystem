@@ -1,13 +1,12 @@
 using Microsoft.EntityFrameworkCore;
-using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using TicketingSystem.Shared.Models;
 
-namespace TicketingSystem.Shared.Data
+namespace TicketingSystem.Ticketing.Data
 {
     /// <summary>
-    /// Main database context for PostgreSQL with Identity support
+    /// Database context for Ticketing microservice - handles events and ticket-related data
     /// </summary>
-    public class TicketingDbContext : IdentityDbContext<User>
+    public class TicketingDbContext : DbContext
     {
         public TicketingDbContext(DbContextOptions<TicketingDbContext> options) : base(options)
         {
@@ -16,20 +15,10 @@ namespace TicketingSystem.Shared.Data
         public DbSet<Event> Events { get; set; }
         public DbSet<EventTicket> EventTickets { get; set; }
         public DbSet<EventTicketTransaction> EventTicketTransactions { get; set; }
-        public DbSet<RefreshToken> RefreshTokens { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
-
-            // User configurations
-            modelBuilder.Entity<User>(entity =>
-            {
-                entity.Property(e => e.FirstName).HasMaxLength(100);
-                entity.Property(e => e.LastName).HasMaxLength(100);
-                entity.Property(e => e.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
-                entity.Property(e => e.UpdatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
-            });
 
             // Event configurations with B-tree index for location-based queries
             modelBuilder.Entity<Event>(entity =>
@@ -54,7 +43,7 @@ namespace TicketingSystem.Shared.Data
                     .OnDelete(DeleteBehavior.Cascade);
 
                 entity.HasOne(et => et.User)
-                    .WithMany(u => u.EventTickets)
+                    .WithMany()  // No back-reference to maintain service boundaries
                     .HasForeignKey(et => et.UserId)
                     .OnDelete(DeleteBehavior.Cascade);
             });
@@ -74,21 +63,8 @@ namespace TicketingSystem.Shared.Data
                     .OnDelete(DeleteBehavior.Cascade);
 
                 entity.HasOne(ett => ett.User)
-                    .WithMany(u => u.EventTicketTransactions)
+                    .WithMany()  // No back-reference to maintain service boundaries
                     .HasForeignKey(ett => ett.UserId)
-                    .OnDelete(DeleteBehavior.Cascade);
-            });
-
-            // RefreshToken configurations
-            modelBuilder.Entity<RefreshToken>(entity =>
-            {
-                entity.HasIndex(e => e.Token).IsUnique();
-                entity.HasIndex(e => new { e.UserId, e.IsRevoked });
-                entity.Property(e => e.Token).IsRequired();
-                
-                entity.HasOne(rt => rt.User)
-                    .WithMany(u => u.RefreshTokens)
-                    .HasForeignKey(rt => rt.UserId)
                     .OnDelete(DeleteBehavior.Cascade);
             });
         }

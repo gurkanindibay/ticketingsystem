@@ -1,7 +1,7 @@
 using TicketingSystem.Shared.DTOs;
 using TicketingSystem.Shared.Models;
 using TicketingSystem.Shared.Utilities;
-using TicketingSystem.Shared.Data;
+using TicketingSystem.Ticketing.Data;
 using Microsoft.EntityFrameworkCore;
 using RedLockNet;
 

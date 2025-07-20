@@ -1,5 +1,4 @@
 using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
 
 namespace TicketingSystem.Shared.Models
 {
@@ -27,10 +26,7 @@ namespace TicketingSystem.Shared.Models
         public DateTime PurchasedAt { get; set; } = DateTime.UtcNow;
 
         // Navigation properties
-        [ForeignKey("EventId")]
         public virtual Event Event { get; set; } = null!;
-
-        [ForeignKey("UserId")]
         public virtual User User { get; set; } = null!;
     }
 }

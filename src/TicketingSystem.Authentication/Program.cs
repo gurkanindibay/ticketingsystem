@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using System.Threading.RateLimiting;
 using System.Reflection;
 using System.Text;
-using TicketingSystem.Shared.Data;
+using TicketingSystem.Authentication.Data;
 using TicketingSystem.Shared.Models;
 using TicketingSystem.Authentication.Services;
 
@@ -16,7 +16,7 @@ var builder = WebApplication.CreateBuilder(args);
 // Database configuration - supports both in-memory and PostgreSQL
 var useInMemoryDatabase = builder.Configuration.GetSection("DatabaseSettings")["UseInMemoryDatabase"];
 
-builder.Services.AddDbContext<TicketingDbContext>(options =>
+builder.Services.AddDbContext<AuthDbContext>(options =>
 {
     if (string.Equals(useInMemoryDatabase, "true", StringComparison.OrdinalIgnoreCase))
     {
@@ -24,7 +24,8 @@ builder.Services.AddDbContext<TicketingDbContext>(options =>
     }
     else
     {
-        options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"));
+        options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"), 
+            b => b.MigrationsAssembly("TicketingSystem.Authentication"));
     }
 });
 
@@ -52,7 +53,7 @@ builder.Services.AddIdentity<User, IdentityRole>(options =>
     options.SignIn.RequireConfirmedEmail = false;
     options.SignIn.RequireConfirmedPhoneNumber = false;
 })
-.AddEntityFrameworkStores<TicketingDbContext>()
+.AddEntityFrameworkStores<AuthDbContext>()
 .AddDefaultTokenProviders();
 
 // JWT configuration
@@ -224,7 +225,7 @@ var app = builder.Build();
 // Ensure database is created and seeded
 using (var scope = app.Services.CreateScope())
 {
-    var context = scope.ServiceProvider.GetRequiredService<TicketingDbContext>();
+    var context = scope.ServiceProvider.GetRequiredService<AuthDbContext>();
     var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
     
     // Ensure database is created

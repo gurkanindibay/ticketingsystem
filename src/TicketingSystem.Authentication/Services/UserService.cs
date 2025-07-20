@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using TicketingSystem.Shared.Data;
+using TicketingSystem.Authentication.Data;
 using TicketingSystem.Shared.DTOs;
 using TicketingSystem.Shared.Models;
 using TicketingSystem.Shared.Utilities;
@@ -15,7 +15,7 @@ namespace TicketingSystem.Authentication.Services
         private readonly UserManager<User> _userManager;
         private readonly SignInManager<User> _signInManager;
         private readonly IJwtService _jwtService;
-        private readonly TicketingDbContext _context;
+        private readonly AuthDbContext _context;
         private readonly IConfiguration _configuration;
         private readonly ILogger<UserService> _logger;
 
@@ -23,7 +23,7 @@ namespace TicketingSystem.Authentication.Services
             UserManager<User> userManager,
             SignInManager<User> signInManager,
             IJwtService jwtService,
-            TicketingDbContext context,
+            AuthDbContext context,
             IConfiguration configuration,
             ILogger<UserService> logger)
         {
