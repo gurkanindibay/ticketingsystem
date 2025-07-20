@@ -1,11 +1,47 @@
 using Microsoft.OpenApi.Models;
+using Microsoft.EntityFrameworkCore;
+using StackExchange.Redis;
+using RedLockNet;
+using RedLockNet.SERedis;
+using RedLockNet.SERedis.Configuration;
 using System.Reflection;
+using TicketingSystem.Ticketing.Services;
+using TicketingSystem.Shared.Data;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddControllers();
 builder.Services.AddHealthChecks();
+
+// Add Entity Framework Core with PostgreSQL
+builder.Services.AddDbContext<TicketingDbContext>(options =>
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection") ?? 
+        "Host=localhost;Database=TicketingSystem;Username=postgres;Password=password"));
+
+// Add Redis connection
+builder.Services.AddSingleton<IConnectionMultiplexer>(provider =>
+{
+    var configuration = builder.Configuration.GetConnectionString("Redis") ?? "localhost:6379";
+    return ConnectionMultiplexer.Connect(configuration);
+});
+
+// Add RedLock for distributed locking
+builder.Services.AddSingleton<IDistributedLockFactory>(provider =>
+{
+    var redis = provider.GetRequiredService<IConnectionMultiplexer>();
+    var multiplexers = new List<RedLockMultiplexer>
+    {
+        new RedLockMultiplexer(redis)
+    };
+    return RedLockFactory.Create(multiplexers);
+});
+
+// Register application services
+builder.Services.AddScoped<IPaymentService, MockPaymentService>();
+builder.Services.AddScoped<IRedisService, RedisService>();
+builder.Services.AddScoped<IRabbitMQService, RabbitMQService>();
+builder.Services.AddScoped<ITicketService, TicketService>();
 
 // Configure Swagger/OpenAPI
 builder.Services.AddEndpointsApiExplorer();

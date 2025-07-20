@@ -16,6 +16,9 @@ namespace TicketingSystem.Shared.DTOs
         [Required]
         [Range(1, int.MaxValue)]
         public int Quantity { get; set; } = 1;
+
+        [Required]
+        public PaymentRequest PaymentDetails { get; set; } = new PaymentRequest();
     }
 
     /// <summary>
@@ -27,6 +30,7 @@ namespace TicketingSystem.Shared.DTOs
         public List<TicketDto> Tickets { get; set; } = new List<TicketDto>();
         public decimal TotalAmount { get; set; }
         public string Status { get; set; } = string.Empty;
+        public PaymentResponse? PaymentDetails { get; set; }
     }
 
     /// <summary>

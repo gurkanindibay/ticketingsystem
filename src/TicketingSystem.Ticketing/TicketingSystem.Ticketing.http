@@ -1,6 +1,112 @@
-@TicketingSystem.Ticketing_HostAddress = http://localhost:5170
+# Ticketing System - Ticketing API Tests
+# Test file for the Ticketing microservice endpoints
 
-GET {{TicketingSystem.Ticketing_HostAddress}}/weatherforecast/
-Accept: application/json
+### Variables
+@host = http://localhost:5115
 
-###
+### Health Check
+GET {{host}}/health
+
+### Purchase Tickets - Successful Payment (using test card 4111111111111111)
+POST {{host}}/api/tickets/purchase
+Content-Type: application/json
+
+{
+  "eventId": 1,
+  "eventDate": "2025-08-20T20:00:00Z",
+  "quantity": 2,
+  "paymentDetails": {
+    "paymentMethod": "credit_card",
+    "cardNumber": "4111111111111111",
+    "expiryMonth": "12",
+    "expiryYear": "2026",
+    "cvv": "123",
+    "cardHolderName": "John Doe",
+    "currency": "USD",
+    "description": "Rock Concert 2025 Tickets"
+  }
+}
+
+### Purchase Tickets - Failed Payment (using test card 4000000000000002)
+POST {{host}}/api/tickets/purchase
+Content-Type: application/json
+
+{
+  "eventId": 1,
+  "eventDate": "2025-08-20T20:00:00Z",
+  "quantity": 1,
+  "paymentDetails": {
+    "paymentMethod": "credit_card",
+    "cardNumber": "4000000000000002",
+    "expiryMonth": "12",
+    "expiryYear": "2026",
+    "cvv": "123",
+    "cardHolderName": "Jane Smith",
+    "currency": "USD",
+    "description": "Rock Concert 2025 Tickets"
+  }
+}
+
+### Purchase Tickets - Processing Payment (using test card 4000000000000119)
+POST {{host}}/api/tickets/purchase
+Content-Type: application/json
+
+{
+  "eventId": 2,
+  "eventDate": "2025-09-05T09:00:00Z",
+  "quantity": 1,
+  "paymentDetails": {
+    "paymentMethod": "credit_card",
+    "cardNumber": "4000000000000119",
+    "expiryMonth": "06",
+    "expiryYear": "2027",
+    "cvv": "456",
+    "cardHolderName": "Bob Johnson",
+    "currency": "USD",
+    "description": "Tech Conference 2025 Tickets"
+  }
+}
+
+### Purchase Tickets - Invalid Request (missing payment details)
+POST {{host}}/api/tickets/purchase
+Content-Type: application/json
+
+{
+  "eventId": 1,
+  "eventDate": "2025-08-20T20:00:00Z",
+  "quantity": 2
+}
+
+### Purchase Tickets - Invalid Payment Card
+POST {{host}}/api/tickets/purchase
+Content-Type: application/json
+
+{
+  "eventId": 1,
+  "eventDate": "2025-08-20T20:00:00Z",
+  "quantity": 1,
+  "paymentDetails": {
+    "paymentMethod": "credit_card",
+    "cardNumber": "1234567890123456",
+    "expiryMonth": "12",
+    "expiryYear": "2026",
+    "cvv": "123",
+    "cardHolderName": "Invalid Card",
+    "currency": "USD"
+  }
+}
+
+### Get User Tickets
+GET {{host}}/api/tickets/user?pageNumber=1&pageSize=10
+
+### Get User Tickets with Date Filter
+GET {{host}}/api/tickets/user?pageNumber=1&pageSize=10&fromDate=2025-01-01&toDate=2025-12-31
+
+### Get Ticket by Transaction ID (replace with actual transaction ID from purchase response)
+GET {{host}}/api/tickets/TXN_SAMPLE_123
+
+### Cancel Ticket (replace with actual transaction ID from purchase response)
+DELETE {{host}}/api/tickets/TXN_SAMPLE_123
+
+### Get Event Details (from Events service for reference)
+GET http://localhost:5002/api/events/1

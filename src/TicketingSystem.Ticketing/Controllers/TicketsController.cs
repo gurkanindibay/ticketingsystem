@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using TicketingSystem.Shared.DTOs;
 using TicketingSystem.Shared.Utilities;
+using TicketingSystem.Ticketing.Services;
 
 namespace TicketingSystem.Ticketing.Controllers
 {
@@ -12,54 +13,92 @@ namespace TicketingSystem.Ticketing.Controllers
     [Produces("application/json")]
     public class TicketsController : ControllerBase
     {
+        private readonly ITicketService _ticketService;
+        private readonly ILogger<TicketsController> _logger;
+
+        public TicketsController(ITicketService ticketService, ILogger<TicketsController> logger)
+        {
+            _ticketService = ticketService;
+            _logger = logger;
+        }
         /// <summary>
         /// Purchase tickets for an event (Requires authentication)
         /// </summary>
-        /// <param name="request">Ticket purchase details</param>
-        /// <returns>Purchase confirmation with ticket details</returns>
+        /// <param name="request">Ticket purchase details including payment information</param>
+        /// <returns>Purchase confirmation with ticket details and payment status</returns>
         /// <response code="200">Tickets purchased successfully</response>
         /// <response code="400">Invalid purchase request or insufficient tickets</response>
         /// <response code="401">Authentication required</response>
         /// <response code="404">Event not found</response>
         /// <response code="409">Tickets sold out or capacity exceeded</response>
+        /// <response code="422">Payment processing failed</response>
         [HttpPost("purchase")]
         [ProducesResponseType(typeof(ApiResponse<PurchaseTicketResponse>), 200)]
         [ProducesResponseType(typeof(ApiResponse<string>), 400)]
         [ProducesResponseType(typeof(ApiResponse<string>), 401)]
         [ProducesResponseType(typeof(ApiResponse<string>), 404)]
         [ProducesResponseType(typeof(ApiResponse<string>), 409)]
+        [ProducesResponseType(typeof(ApiResponse<string>), 422)]
         public async Task<ActionResult<ApiResponse<PurchaseTicketResponse>>> PurchaseTickets([FromBody] PurchaseTicketRequest request)
         {
-            // TODO: Implement ticket purchase logic with RedLock distributed locking and RabbitMQ messaging
-            await Task.Delay(100); // Simulate async operation
-
-            var transactionId = SecurityHelper.GenerateTransactionId(1, request.EventId, DateTime.UtcNow);
-            
-            var tickets = new List<TicketDto>();
-            for (int i = 0; i < request.Quantity; i++)
+            try
             {
-                tickets.Add(new TicketDto
+                _logger.LogInformation("Ticket purchase request received for event {EventId}, quantity {Quantity}",
+                    request.EventId, request.Quantity);
+
+                // TODO: Get user ID from authentication context when implemented
+                var userId = "user_1"; // Mock user ID for now
+
+                // Validate request
+                if (request.EventId <= 0 || request.Quantity <= 0 || request.Quantity > 10)
                 {
-                    Id = new Random().Next(10000, 99999),
-                    UserId = "user_1", // TODO: Get from authenticated user
-                    EventId = request.EventId,
-                    EventName = "Sample Event",
-                    EventDate = request.EventDate,
-                    TransactionId = transactionId,
-                    PurchasedAt = DateTime.UtcNow,
-                    Location = "New York"
-                });
+                    return BadRequest(ApiResponse<PurchaseTicketResponse>.ErrorResponse(
+                        "Invalid request. Event ID must be positive and quantity must be between 1 and 10."));
+                }
+
+                // Check event availability first
+                var (isAvailable, pricePerTicket, availableTickets) = await _ticketService.CheckEventAvailabilityAsync(request.EventId, request.Quantity);
+                
+                if (!isAvailable)
+                {
+                    if (availableTickets == 0)
+                    {
+                        return Conflict(ApiResponse<PurchaseTicketResponse>.ErrorResponse(
+                            "Event is sold out or no longer available."));
+                    }
+                    else if (availableTickets < request.Quantity)
+                    {
+                        return Conflict(ApiResponse<PurchaseTicketResponse>.ErrorResponse(
+                            $"Only {availableTickets} tickets available. Requested: {request.Quantity}"));
+                    }
+                    else
+                    {
+                        return NotFound(ApiResponse<PurchaseTicketResponse>.ErrorResponse(
+                            "Event not found or no longer available."));
+                    }
+                }
+
+                // Process ticket purchase
+                var result = await _ticketService.PurchaseTicketsAsync(request, userId);
+
+                return result.Status switch
+                {
+                    "Completed" => Ok(ApiResponse<PurchaseTicketResponse>.SuccessResponse(result, 
+                        "Tickets purchased successfully")),
+                    "Payment Failed" => UnprocessableEntity(ApiResponse<PurchaseTicketResponse>.ErrorResponse(
+                        "Payment processing failed. Please check your payment details and try again.")),
+                    "Failed" => Conflict(ApiResponse<PurchaseTicketResponse>.ErrorResponse(
+                        "Ticket purchase failed due to availability")),
+                    _ => StatusCode(500, ApiResponse<PurchaseTicketResponse>.ErrorResponse(
+                        "An error occurred while processing your purchase"))
+                };
             }
-
-            var response = new PurchaseTicketResponse
+            catch (Exception ex)
             {
-                TransactionId = transactionId,
-                Tickets = tickets,
-                TotalAmount = 50.00m * request.Quantity, // Sample price
-                Status = "Completed"
-            };
-
-            return Ok(ApiResponse<PurchaseTicketResponse>.SuccessResponse(response, "Tickets purchased successfully"));
+                _logger.LogError(ex, "Error processing ticket purchase for event {EventId}", request.EventId);
+                return StatusCode(500, ApiResponse<PurchaseTicketResponse>.ErrorResponse(
+                    "An unexpected error occurred while processing your purchase"));
+            }
         }
 
         /// <summary>
@@ -76,45 +115,27 @@ namespace TicketingSystem.Ticketing.Controllers
         [ProducesResponseType(typeof(ApiResponse<string>), 401)]
         public async Task<ActionResult<ApiResponse<UserTicketsResponse>>> GetUserTickets([FromQuery] UserTicketsRequest request)
         {
-            // TODO: Implement get user tickets logic with authentication
-            await Task.Delay(100); // Simulate async operation
-
-            var tickets = new List<TicketDto>
+            try
             {
-                new TicketDto
+                // TODO: Get user ID from authentication context when implemented
+                var userId = "user_1"; // Mock user ID for now
+
+                // Validate pagination parameters
+                if (request.PageNumber < 1 || request.PageSize < 1 || request.PageSize > 100)
                 {
-                    Id = 12345,
-                    UserId = "user_1", // TODO: Get from authenticated user
-                    EventId = 1,
-                    EventName = "Rock Concert 2025",
-                    EventDate = DateTime.UtcNow.AddDays(30),
-                    TransactionId = "TXN_ABC123",
-                    PurchasedAt = DateTime.UtcNow.AddDays(-5),
-                    Location = "New York"
-                },
-                new TicketDto
-                {
-                    Id = 12346,
-                    UserId = "user_1", // TODO: Get from authenticated user
-                    EventId = 2,
-                    EventName = "Tech Conference 2025",
-                    EventDate = DateTime.UtcNow.AddDays(45),
-                    TransactionId = "TXN_DEF456",
-                    PurchasedAt = DateTime.UtcNow.AddDays(-10),
-                    Location = "San Francisco"
+                    return BadRequest(ApiResponse<UserTicketsResponse>.ErrorResponse(
+                        "Invalid pagination parameters. Page number must be >= 1 and page size between 1 and 100."));
                 }
-            };
 
-            var response = new UserTicketsResponse
+                var result = await _ticketService.GetUserTicketsAsync(request, userId);
+                return Ok(ApiResponse<UserTicketsResponse>.SuccessResponse(result, "Tickets retrieved successfully"));
+            }
+            catch (Exception ex)
             {
-                Tickets = tickets,
-                TotalCount = tickets.Count,
-                PageNumber = request.PageNumber,
-                PageSize = request.PageSize,
-                TotalPages = 1
-            };
-
-            return Ok(ApiResponse<UserTicketsResponse>.SuccessResponse(response, "Tickets retrieved successfully"));
+                _logger.LogError(ex, "Error retrieving user tickets");
+                return StatusCode(500, ApiResponse<UserTicketsResponse>.ErrorResponse(
+                    "An error occurred while retrieving your tickets"));
+            }
         }
 
         /// <summary>
@@ -131,38 +152,34 @@ namespace TicketingSystem.Ticketing.Controllers
         [ProducesResponseType(typeof(ApiResponse<string>), 404)]
         public async Task<ActionResult<ApiResponse<PurchaseTicketResponse>>> GetTicketByTransaction(string transactionId)
         {
-            // TODO: Implement get ticket by transaction ID logic
-            await Task.Delay(100); // Simulate async operation
-
-            if (string.IsNullOrEmpty(transactionId))
+            try
             {
-                return NotFound(ApiResponse<PurchaseTicketResponse>.ErrorResponse("Ticket not found"));
-            }
+                // TODO: Get user ID from authentication context when implemented
+                var userId = "user_1"; // Mock user ID for now
 
-            var tickets = new List<TicketDto>
-            {
-                new TicketDto
+                if (string.IsNullOrWhiteSpace(transactionId))
                 {
-                    Id = 12345,
-                    UserId = "user_1",
-                    EventId = 1,
-                    EventName = "Rock Concert 2025",
-                    EventDate = DateTime.UtcNow.AddDays(30),
-                    TransactionId = transactionId,
-                    PurchasedAt = DateTime.UtcNow.AddDays(-5),
-                    Location = "New York"
+                    return BadRequest(ApiResponse<PurchaseTicketResponse>.ErrorResponse(
+                        "Transaction ID is required"));
                 }
-            };
 
-            var response = new PurchaseTicketResponse
+                var result = await _ticketService.GetTicketByTransactionAsync(transactionId, userId);
+                
+                if (result == null)
+                {
+                    return NotFound(ApiResponse<PurchaseTicketResponse>.ErrorResponse(
+                        "Ticket not found or you don't have permission to view it"));
+                }
+
+                return Ok(ApiResponse<PurchaseTicketResponse>.SuccessResponse(result, 
+                    "Ticket details retrieved successfully"));
+            }
+            catch (Exception ex)
             {
-                TransactionId = transactionId,
-                Tickets = tickets,
-                TotalAmount = 50.00m,
-                Status = "Completed"
-            };
-
-            return Ok(ApiResponse<PurchaseTicketResponse>.SuccessResponse(response, "Ticket details retrieved successfully"));
+                _logger.LogError(ex, "Error retrieving ticket by transaction {TransactionId}", transactionId);
+                return StatusCode(500, ApiResponse<PurchaseTicketResponse>.ErrorResponse(
+                    "An error occurred while retrieving ticket details"));
+            }
         }
 
         /// <summary>
@@ -181,15 +198,32 @@ namespace TicketingSystem.Ticketing.Controllers
         [ProducesResponseType(typeof(ApiResponse<string>), 404)]
         public async Task<ActionResult<ApiResponse>> CancelTicket(string transactionId)
         {
-            // TODO: Implement ticket cancellation logic with capacity updates via RabbitMQ
-            await Task.Delay(100); // Simulate async operation
-
-            if (string.IsNullOrEmpty(transactionId))
+            try
             {
-                return NotFound(ApiResponse.ErrorResponse("Ticket not found"));
-            }
+                // TODO: Get user ID from authentication context when implemented
+                var userId = "user_1"; // Mock user ID for now
 
-            return Ok(ApiResponse.SuccessResponse("Ticket cancelled successfully"));
+                if (string.IsNullOrWhiteSpace(transactionId))
+                {
+                    return BadRequest(ApiResponse.ErrorResponse("Transaction ID is required"));
+                }
+
+                var result = await _ticketService.CancelTicketAsync(transactionId, userId);
+
+                if (!result)
+                {
+                    return NotFound(ApiResponse.ErrorResponse(
+                        "Ticket not found, cancellation not allowed, or you don't have permission to cancel this ticket"));
+                }
+
+                return Ok(ApiResponse.SuccessResponse("Ticket cancelled successfully"));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error cancelling ticket {TransactionId}", transactionId);
+                return StatusCode(500, ApiResponse.ErrorResponse(
+                    "An error occurred while cancelling the ticket"));
+            }
         }
     }
 }
