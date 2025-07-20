@@ -148,6 +148,8 @@ namespace TicketingSystem.Ticketing.Services
         {
             try
             {
+                _logger.LogInformation("Starting event creation for: {EventName}", request.Name);
+                
                 var eventEntity = new Event
                 {
                     Name = request.Name,
@@ -157,21 +159,27 @@ namespace TicketingSystem.Ticketing.Services
                     EndTime = request.StartTime.Add(request.Duration),
                     Capacity = request.Capacity,
                     Location = request.Location,
-                    EventType = request.EventType
+                    EventType = request.EventType,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
                 };
 
+                _logger.LogInformation("Event entity created, adding to context...");
                 _context.Events.Add(eventEntity);
+                
+                _logger.LogInformation("Calling SaveChangesAsync...");
                 await _context.SaveChangesAsync();
+                _logger.LogInformation("SaveChangesAsync completed successfully");
 
-                // Cache the new event
-                await _redisService.SetEventAsync(eventEntity);
+                // Cache the new event - temporarily disabled for debugging
+                // await _redisService.SetEventAsync(eventEntity);
 
                 _logger.LogInformation("Event created: {EventId} - {EventName}", eventEntity.Id, eventEntity.Name);
                 return MapToDto(eventEntity, request.Capacity);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error creating event: {EventName}", request.Name);
+                _logger.LogError(ex, "Error creating event: {EventName}. Exception details: {ExceptionDetails}", request.Name, ex.ToString());
                 throw;
             }
         }

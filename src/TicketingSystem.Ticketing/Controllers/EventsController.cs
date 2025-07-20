@@ -112,7 +112,7 @@ namespace TicketingSystem.Ticketing.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error creating event: {EventName}", request.Name);
-                return BadRequest(ApiResponse<EventDto>.ErrorResponse("Error creating event"));
+                return BadRequest(ApiResponse<EventDto>.ErrorResponse($"Error creating event: {ex.Message}"));
             }
         }
 

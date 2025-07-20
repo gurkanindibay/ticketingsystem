@@ -100,6 +100,68 @@ namespace TicketingSystem.Authentication.Services
         }
 
         /// <summary>
+        /// Register a new admin user (Development/Testing only)
+        /// </summary>
+        public async Task<ApiResponse<UserDto>> RegisterAdminAsync(RegisterRequest request)
+        {
+            try
+            {
+                _logger.LogInformation("Attempting to register admin user {Email}", request.Email);
+
+                // Check if user already exists
+                var existingUser = await _userManager.FindByEmailAsync(request.Email);
+                if (existingUser != null)
+                {
+                    _logger.LogWarning("Admin registration failed - user already exists: {Email}", request.Email);
+                    return ApiResponse<UserDto>.ErrorResponse("User with this email already exists", "USER_EXISTS");
+                }
+
+                // Create new admin user
+                var user = new User
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    UserName = request.Email,
+                    Email = request.Email,
+                    EmailConfirmed = true, // Auto-confirm for development
+                    FirstName = request.FirstName,
+                    LastName = request.LastName,
+                    IsActive = true,
+                    CreatedAt = DateTime.UtcNow
+                };
+
+                var result = await _userManager.CreateAsync(user, request.Password);
+                if (!result.Succeeded)
+                {
+                    var errors = string.Join(", ", result.Errors.Select(e => e.Description));
+                    _logger.LogWarning("Failed to create admin user {Email}: {Errors}", request.Email, errors);
+                    return ApiResponse<UserDto>.ErrorResponse($"Failed to create admin user: {errors}", "CREATION_FAILED");
+                }
+
+                // Add admin role
+                await _userManager.AddToRoleAsync(user, "Admin");
+
+                var userDto = new UserDto
+                {
+                    Id = user.Id,
+                    Username = user.UserName!,
+                    Email = user.Email!,
+                    FirstName = user.FirstName,
+                    LastName = user.LastName,
+                    IsActive = user.IsActive,
+                    CreatedAt = user.CreatedAt
+                };
+
+                _logger.LogInformation("Successfully registered admin user {Email} with ID {UserId}", request.Email, user.Id);
+                return ApiResponse<UserDto>.SuccessResponse(userDto, "Admin user registered successfully");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error registering admin user {Email}", request.Email);
+                return ApiResponse<UserDto>.ErrorResponse("An error occurred during admin registration", "INTERNAL_ERROR");
+            }
+        }
+
+        /// <summary>
         /// Authenticate user login
         /// </summary>
         public async Task<ApiResponse<AuthenticationResponse>> LoginAsync(LoginRequest request)

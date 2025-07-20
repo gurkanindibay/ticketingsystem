@@ -207,6 +207,57 @@ namespace TicketingSystem.Authentication.Controllers
         }
 
         /// <summary>
+        /// Register a new admin user (Development/Testing only)
+        /// </summary>
+        /// <param name="request">Admin user registration details</param>
+        /// <returns>Admin user registration response</returns>
+        /// <response code="200">Admin registration successful</response>
+        /// <response code="400">Invalid registration data</response>
+        /// <response code="409">User already exists</response>
+        [HttpPost("register-admin")]
+        [ProducesResponseType(typeof(ApiResponse<UserDto>), 200)]
+        [ProducesResponseType(typeof(ApiResponse<string>), 400)]
+        [ProducesResponseType(typeof(ApiResponse<string>), 409)]
+        public async Task<ActionResult<ApiResponse<UserDto>>> RegisterAdmin([FromBody] RegisterRequest request)
+        {
+            // Security: Log admin registration attempt with IP address
+            var clientIp = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown";
+            _logger.LogInformation("Admin registration attempt from IP: {ClientIp}, Email: {Email}", clientIp, request.Email);
+
+            // Validate request using validation service
+            var validationResult = _validationService.ValidateRegistration(request);
+            if (!validationResult.IsValid)
+            {
+                _logger.LogWarning("Admin registration validation failed for email: {Email}, IP: {ClientIp}, Errors: {Errors}", 
+                    request.Email, clientIp, string.Join(", ", validationResult.Errors));
+                return BadRequest(ApiResponse<UserDto>.ErrorResponse("Admin registration validation failed", validationResult.Errors));
+            }
+
+            if (!ModelState.IsValid)
+            {
+                var errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList();
+                return BadRequest(ApiResponse<UserDto>.ErrorResponse("Invalid admin registration data", errors));
+            }
+
+            var result = await _userService.RegisterAdminAsync(request);
+            
+            if (!result.Success)
+            {
+                // Security: Log failed admin registration attempts
+                _logger.LogWarning("Admin registration failed for email: {Email}, IP: {ClientIp}, Errors: {Errors}", 
+                    request.Email, clientIp, string.Join(", ", result.Errors));
+                
+                return result.Errors.Any(e => e.Contains("already exists")) 
+                    ? Conflict(result) 
+                    : BadRequest(result);
+            }
+
+            // Security: Log successful admin registration (without sensitive data)
+            _logger.LogInformation("Admin user registered successfully: {Email}, IP: {ClientIp}", request.Email, clientIp);
+            return Ok(result);
+        }
+
+        /// <summary>
         /// Get current user profile information
         /// </summary>
         /// <returns>Current user profile</returns>

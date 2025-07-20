@@ -17,6 +17,13 @@ namespace TicketingSystem.Authentication.Services
         Task<ApiResponse<UserDto>> RegisterAsync(RegisterRequest request);
 
         /// <summary>
+        /// Register a new admin user (Development/Testing only)
+        /// </summary>
+        /// <param name="request">Admin registration request</param>
+        /// <returns>API response with admin user data</returns>
+        Task<ApiResponse<UserDto>> RegisterAdminAsync(RegisterRequest request);
+
+        /// <summary>
         /// Authenticate user login
         /// </summary>
         /// <param name="request">Login request</param>

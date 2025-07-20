@@ -51,7 +51,7 @@ curl -X POST http://localhost:5001/api/auth/login -H "Content-Type: application/
 Replace `YOUR_TOKEN_HERE` with the actual token from Step 3:
 
 ```bash
-curl -X GET http://localhost:5002/api/events -H "Authorization: Bearer YOUR_TOKEN_HERE"
+curl -X GET http://localhost:5002/api/events -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJuYW1laWQiOiJjYjE4YjMzZi1kODk4LTQ0OWItYjE0OC0xZTViZWQzYzA5MTYiLCJ1bmlxdWVfbmFtZSI6InRlc3R1c2VyQGV4YW1wbGUuY29tIiwiZW1haWwiOiJ0ZXN0dXNlckBleGFtcGxlLmNvbSIsImZpcnN0TmFtZSI6InRlc3R1c2VyIiwibGFzdE5hbWUiOiJ0ZXN0dXNlciIsImlzQWN0aXZlIjoiVHJ1ZSIsInJvbGUiOiJVc2VyIiwibmJmIjoxNzUzMDI2MjM2LCJleHAiOjE3NTMwMjcxMzYsImlhdCI6MTc1MzAyNjIzNiwiaXNzIjoiVGlja2V0aW5nU3lzdGVtIiwiYXVkIjoiVGlja2V0aW5nU3lzdGVtLlVzZXJzIn0.y8qDetG8HkEu_C9NEW9I2iFUJWqN3KEbLA_S5reRIXQ"
 ```
 
 **Note**: The token in this example may be expired. Always use a fresh token from Step 3.
@@ -62,7 +62,7 @@ The Ticketing service now includes Events functionality. Test creating and manag
 
 ```bash
 # Create a new event (Admin operation)
-curl -X POST http://localhost:5002/api/events -H "Content-Type: application/json" -H "Authorization: Bearer YOUR_TOKEN_HERE" -d "{\"name\":\"Test Concert\",\"date\":\"2025-08-15T20:00:00\",\"duration\":\"02:30:00\",\"startTime\":\"20:00:00\",\"capacity\":1000,\"location\":\"New York\",\"eventType\":\"Concert\"}"
+curl -X POST http://localhost:5002/api/events -H "Content-Type: application/json" -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJuYW1laWQiOiJjYjE4YjMzZi1kODk4LTQ0OWItYjE0OC0xZTViZWQzYzA5MTYiLCJ1bmlxdWVfbmFtZSI6InRlc3R1c2VyQGV4YW1wbGUuY29tIiwiZW1haWwiOiJ0ZXN0dXNlckBleGFtcGxlLmNvbSIsImZpcnN0TmFtZSI6InRlc3R1c2VyIiwibGFzdE5hbWUiOiJ0ZXN0dXNlciIsImlzQWN0aXZlIjoiVHJ1ZSIsInJvbGUiOiJVc2VyIiwibmJmIjoxNzUzMDI2MjM2LCJleHAiOjE3NTMwMjcxMzYsImlhdCI6MTc1MzAyNjIzNiwiaXNzIjoiVGlja2V0aW5nU3lzdGVtIiwiYXVkIjoiVGlja2V0aW5nU3lzdGVtLlVzZXJzIn0.y8qDetG8HkEu_C9NEW9I2iFUJWqN3KEbLA_S5reRIXQ" -d "{\"name\":\"Test Concert\",\"date\":\"2025-08-15T20:00:00\",\"duration\":\"02:30:00\",\"startTime\":\"20:00:00\",\"capacity\":1000,\"location\":\"New York\",\"eventType\":\"Concert\"}"
 
 # Search events by location
 curl -X GET "http://localhost:5002/api/events/search?location=New York" -H "Authorization: Bearer YOUR_TOKEN_HERE"
