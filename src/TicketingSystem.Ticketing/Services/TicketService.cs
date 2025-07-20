@@ -482,12 +482,20 @@ namespace TicketingSystem.Ticketing.Services
             
             for (int i = 0; i < request.Quantity; i++)
             {
+                // Generate unique ticket transaction ID for each ticket
+                // Adding a small delay to ensure unique timestamps
+                var ticketTimestamp = DateTime.UtcNow.AddTicks(i);
+                var ticketTransactionId = SecurityHelper.GenerateTransactionId(
+                    userId.GetHashCode(),
+                    request.EventId,
+                    ticketTimestamp);
+
                 var eventTicket = new EventTicket
                 {
                     UserId = userId,
                     EventId = request.EventId,
                     EventDate = request.EventDate,
-                    TransactionId = transactionId,
+                    TransactionId = ticketTransactionId, // Unique ID for each ticket
                     PurchasedAt = DateTime.UtcNow
                 };
 

@@ -17,6 +17,9 @@ This consolidation improves performance and reduces complexity while maintaining
    - Authentication: http://localhost:5001
    - Ticketing & Events: http://localhost:5002
 
+**Important for Windows PowerShell Users:** 
+Use `curl.exe` instead of `curl` in all commands below to avoid PowerShell alias conflicts. PowerShell treats `curl` as an alias for `Invoke-WebRequest` which has different syntax.
+
 ## Step-by-Step Manual Testing
 
 ### Step 1: Test Service Health
@@ -64,20 +67,54 @@ The Ticketing service now includes Events functionality. Test creating and manag
 # Create a new event (Admin operation)
 curl -X POST http://localhost:5002/api/events -H "Content-Type: application/json" -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJuYW1laWQiOiJjYjE4YjMzZi1kODk4LTQ0OWItYjE0OC0xZTViZWQzYzA5MTYiLCJ1bmlxdWVfbmFtZSI6InRlc3R1c2VyQGV4YW1wbGUuY29tIiwiZW1haWwiOiJ0ZXN0dXNlckBleGFtcGxlLmNvbSIsImZpcnN0TmFtZSI6InRlc3R1c2VyIiwibGFzdE5hbWUiOiJ0ZXN0dXNlciIsImlzQWN0aXZlIjoiVHJ1ZSIsInJvbGUiOiJVc2VyIiwibmJmIjoxNzUzMDI2MjM2LCJleHAiOjE3NTMwMjcxMzYsImlhdCI6MTc1MzAyNjIzNiwiaXNzIjoiVGlja2V0aW5nU3lzdGVtIiwiYXVkIjoiVGlja2V0aW5nU3lzdGVtLlVzZXJzIn0.y8qDetG8HkEu_C9NEW9I2iFUJWqN3KEbLA_S5reRIXQ" -d "{\"name\":\"Test Concert\",\"date\":\"2025-08-15T20:00:00\",\"duration\":\"02:30:00\",\"startTime\":\"20:00:00\",\"capacity\":1000,\"location\":\"New York\",\"eventType\":\"Concert\"}"
 
-# Search events by location
-curl -X GET "http://localhost:5002/api/events/search?location=New York" -H "Authorization: Bearer YOUR_TOKEN_HERE"
+# Search events by location (Note: Use curl.exe in PowerShell to avoid alias conflicts)
+curl.exe -X GET "http://localhost:5002/api/events?location=New%20York" -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJuYW1laWQiOiJjYjE4YjMzZi1kODk4LTQ0OWItYjE0OC0xZTViZWQzYzA5MTYiLCJ1bmlxdWVfbmFtZSI6InRlc3R1c2VyQGV4YW1wbGUuY29tIiwiZW1haWwiOiJ0ZXN0dXNlckBleGFtcGxlLmNvbSIsImZpcnN0TmFtZSI6InRlc3R1c2VyIiwibGFzdE5hbWUiOiJ0ZXN0dXNlciIsImlzQWN0aXZlIjoiVHJ1ZSIsInJvbGUiOiJVc2VyIiwibmJmIjoxNzUzMDI4NTc4LCJleHAiOjE3NTMwMjk0NzgsImlhdCI6MTc1MzAyODU3OCwiaXNzIjoiVGlja2V0aW5nU3lzdGVtIiwiYXVkIjoiVGlja2V0aW5nU3lzdGVtLlVzZXJzIn0.NosrHhnoDleSp70M7pDv-OXao2PtbrFMBcB2_S8wpns"
 
 # Get specific event by ID
-curl -X GET http://localhost:5002/api/events/1 -H "Authorization: Bearer YOUR_TOKEN_HERE"
+curl -X GET http://localhost:5002/api/events/1 -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJuYW1laWQiOiJjYjE4YjMzZi1kODk4LTQ0OWItYjE0OC0xZTViZWQzYzA5MTYiLCJ1bmlxdWVfbmFtZSI6InRlc3R1c2VyQGV4YW1wbGUuY29tIiwiZW1haWwiOiJ0ZXN0dXNlckBleGFtcGxlLmNvbSIsImZpcnN0TmFtZSI6InRlc3R1c2VyIiwibGFzdE5hbWUiOiJ0ZXN0dXNlciIsImlzQWN0aXZlIjoiVHJ1ZSIsInJvbGUiOiJVc2VyIiwibmJmIjoxNzUzMDI4NTc4LCJleHAiOjE3NTMwMjk0NzgsImlhdCI6MTc1MzAyODU3OCwiaXNzIjoiVGlja2V0aW5nU3lzdGVtIiwiYXVkIjoiVGlja2V0aW5nU3lzdGVtLlVzZXJzIn0.NosrHhnoDleSp70M7pDv-OXao2PtbrFMBcB2_S8wpns"
 ```
 
 **Expected Result**: Event creation, search, and retrieval work correctly
 
 ### Step 6: Purchase Tickets
-Replace `YOUR_TOKEN_HERE` with your actual token:
+For PowerShell users, use this PowerShell-native approach:
 
+```powershell
+# PowerShell native approach (recommended for Windows)
+$headers = @{
+    'Content-Type' = 'application/json'
+    'Authorization' = 'Bearer YOUR_TOKEN_HERE'
+}
+
+$body = @{
+    eventId = 1
+    eventDate = "2025-08-15T20:00:00Z"
+    quantity = 2
+    paymentDetails = @{
+        paymentMethod = "credit_card"
+        cardNumber = "4111111111111111"
+        expiryMonth = "12"
+        expiryYear = "2025"
+        cvv = "123"
+        cardHolderName = "Test User"
+        amount = 100.00
+        currency = "USD"
+        description = "Test ticket purchase"
+    }
+} | ConvertTo-Json -Depth 3
+
+try { 
+    $response = Invoke-RestMethod -Uri "http://localhost:5002/api/tickets/purchase" -Method Post -Headers $headers -Body $body
+    Write-Host "Success: $($response | ConvertTo-Json -Depth 5)" 
+} catch { 
+    Write-Host "Error: $($_.Exception.Message)"
+    Write-Host "Details: $($_.ErrorDetails.Message)"
+}
+```
+
+Alternative curl.exe command (if you prefer curl):
 ```bash
-curl -X POST http://localhost:5002/api/tickets/purchase -H "Content-Type: application/json" -H "Authorization: Bearer YOUR_TOKEN_HERE" -d "{\"eventId\":1,\"quantity\":2,\"paymentRequest\":{\"cardNumber\":\"4111111111111111\",\"expiryMonth\":12,\"expiryYear\":2025,\"cvv\":\"123\",\"cardHolderName\":\"Test User\",\"amount\":100.00}}"
+curl.exe -X POST "http://localhost:5002/api/tickets/purchase" -H "Content-Type: application/json" -H "Authorization: Bearer YOUR_TOKEN_HERE" --data-raw "{\"eventId\":1,\"eventDate\":\"2025-08-15T20:00:00Z\",\"quantity\":2,\"paymentDetails\":{\"paymentMethod\":\"credit_card\",\"cardNumber\":\"4111111111111111\",\"expiryMonth\":\"12\",\"expiryYear\":\"2025\",\"cvv\":\"123\",\"cardHolderName\":\"Test User\",\"amount\":100.00,\"currency\":\"USD\",\"description\":\"Test ticket purchase\"}}"
 ```
 
 **Expected Result**: 200 OK with purchase confirmation including transaction ID
@@ -184,6 +221,19 @@ These scripts automatically test all the manual steps above and provide detailed
 3. Verify database connection strings
 4. Ensure only 2 services are running (Authentication on 5001, Ticketing+Events on 5002)
 
+### PowerShell curl Command Issues
+If you see "URL rejected: Malformed input" or parameter binding errors:
+
+**Root Cause:** PowerShell uses `curl` as an alias for `Invoke-WebRequest` which has different syntax.
+
+**Solutions:**
+1. **Use curl.exe explicitly:** `curl.exe -X GET "http://localhost:5002/api/events?location=New%20York"`
+2. **URL encode spaces:** Replace spaces with `%20` in URLs
+3. **Use PowerShell native syntax:**
+   ```powershell
+   Invoke-RestMethod -Uri "http://localhost:5002/api/events?location=New York" -Headers @{Authorization="Bearer YOUR_TOKEN"}
+   ```
+
 ### Redis Configuration Error ("configuration is empty")
 If you see `System.ArgumentException: is empty (Parameter 'configuration')`:
 
@@ -210,6 +260,13 @@ If you see `System.ArgumentException: is empty (Parameter 'configuration')`:
 1. Verify card number passes Luhn check
 2. Check payment service logs
 3. Ensure amount is positive
+4. **Check service logs for internal errors:**
+   - Look at the console output where you started the Ticketing service
+   - Common issues: Redis connection, database connection, missing event data
+5. **Verify request structure:**
+   - Ensure `eventDate` matches the actual event date
+   - Include all required fields: `paymentMethod`, `currency`, etc.
+   - Use string format for `expiryMonth` and `expiryYear`
 
 ### RabbitMQ Issues
 1. Check RabbitMQ is running: `docker ps`
@@ -221,3 +278,15 @@ If you see `System.ArgumentException: is empty (Parameter 'configuration')`:
 2. Verify connection string
 3. Check if tables exist
 4. Review EF Core migrations
+5. **Foreign Key Constraint Errors:**
+   - If you see "violates foreign key constraint FK_EventTicketTransactions_User_UserId", the database migration to remove User foreign keys may be needed
+   - Run: `dotnet ef migrations add RemoveUserForeignKeyConstraints` and `dotnet ef database update` in the Ticketing project
+6. **Duplicate Key Errors:**
+   - If you see "duplicate key value violates unique constraint", check the transaction ID generation
+   - Ensure each ticket gets a unique TransactionId
+
+### Service Architecture Issues  
+The system was designed to fix common microservices database issues:
+- **User Foreign Key Removal**: Ticketing service references User IDs as strings without foreign key constraints to Auth service
+- **Redis Serialization**: EventTicketTransaction objects use DTOs to avoid circular reference issues
+- **Unique Transaction IDs**: Each ticket gets its own unique transaction ID to avoid database conflicts

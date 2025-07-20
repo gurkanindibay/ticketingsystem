@@ -36,16 +36,15 @@ namespace TicketingSystem.Ticketing.Data
                 entity.HasIndex(e => e.TransactionId).IsUnique();
                 entity.HasIndex(e => new { e.UserId, e.EventId });
                 entity.Property(e => e.TransactionId).IsRequired();
+                entity.Property(e => e.UserId).IsRequired(); // String reference to User ID from Auth service
                 
                 entity.HasOne(et => et.Event)
                     .WithMany(e => e.EventTickets)
                     .HasForeignKey(et => et.EventId)
                     .OnDelete(DeleteBehavior.Cascade);
 
-                entity.HasOne(et => et.User)
-                    .WithMany()  // No back-reference to maintain service boundaries
-                    .HasForeignKey(et => et.UserId)
-                    .OnDelete(DeleteBehavior.Cascade);
+                // No foreign key constraint to User - UserId is a string reference to Auth service
+                entity.Ignore(et => et.User);
             });
 
             // EventTicketTransaction configurations
@@ -56,16 +55,15 @@ namespace TicketingSystem.Ticketing.Data
                 entity.HasIndex(e => e.Status);
                 entity.Property(e => e.TransactionId).IsRequired();
                 entity.Property(e => e.Amount).HasPrecision(18, 2);
+                entity.Property(e => e.UserId).IsRequired(); // String reference to User ID from Auth service
                 
                 entity.HasOne(ett => ett.Event)
                     .WithMany(e => e.EventTicketTransactions)
                     .HasForeignKey(ett => ett.EventId)
                     .OnDelete(DeleteBehavior.Cascade);
 
-                entity.HasOne(ett => ett.User)
-                    .WithMany()  // No back-reference to maintain service boundaries
-                    .HasForeignKey(ett => ett.UserId)
-                    .OnDelete(DeleteBehavior.Cascade);
+                // No foreign key constraint to User - UserId is a string reference to Auth service
+                entity.Ignore(ett => ett.User);
             });
         }
     }

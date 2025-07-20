@@ -201,7 +201,22 @@ namespace TicketingSystem.Ticketing.Services
             try
             {
                 var key = $"{_keyPrefix}event_ticket_transactions:{transaction.TransactionId}";
-                var value = JsonConvert.SerializeObject(transaction);
+                
+                // Create a DTO to avoid circular references when serializing to Redis
+                var transactionDto = new
+                {
+                    transaction.Id,
+                    transaction.EventId,
+                    transaction.UserId,
+                    transaction.TransactionId,
+                    transaction.EventDate,
+                    transaction.Status,
+                    transaction.Amount,
+                    transaction.CreatedAt,
+                    transaction.UpdatedAt
+                };
+                
+                var value = JsonConvert.SerializeObject(transactionDto);
 
                 // Set TTL for transactions of past events
                 var effectiveExpiry = expiry;
