@@ -1,5 +1,12 @@
 # Manual Testing Steps for Ticketing System
 
+## Architecture Overview
+The system has been consolidated from 3 services to 2 services:
+- **Authentication Service** (Port 5001): User registration, login, JWT tokens
+- **Ticketing & Events Service** (Port 5002): Event management, ticket operations, payment processing
+
+This consolidation improves performance and reduces complexity while maintaining all functionality.
+
 ## Prerequisites
 1. Docker is running with infrastructure services:
    ```
@@ -8,8 +15,7 @@
 
 2. Services are running on:
    - Authentication: http://localhost:5001
-   - Events: http://localhost:5002  
-   - Ticketing: http://localhost:5003
+   - Ticketing & Events: http://localhost:5002
 
 ## Step-by-Step Manual Testing
 
@@ -20,11 +26,8 @@ Open PowerShell/Command Prompt and run:
 # Test Authentication Service
 curl http://localhost:5001/health
 
-# Test Events Service  
+# Test Ticketing & Events Service  
 curl http://localhost:5002/health
-
-# Test Ticketing Service
-curl http://localhost:5003/health
 ```
 
 **Expected Result**: Each should return a 200 OK response
@@ -48,29 +51,45 @@ curl -X POST http://localhost:5001/api/auth/login -H "Content-Type: application/
 Replace `YOUR_TOKEN_HERE` with the actual token from Step 3:
 
 ```bash
-curl -X GET http://localhost:5002/api/events -H "Authorization: Bearer YOUR_TOKEN_HERE"
+curl -X GET http://localhost:5002/api/events -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJuYW1laWQiOiIyMzdjZDA3Ni00ZDY4LTRkY2ItYTQ0YS03Y2Y1ZTEwM2MzYTQiLCJ1bmlxdWVfbmFtZSI6InRlc3R1c2VyQGV4YW1wbGUuY29tIiwiZW1haWwiOiJ0ZXN0dXNlckBleGFtcGxlLmNvbSIsImZpcnN0TmFtZSI6InRlc3R1c2VyIiwibGFzdE5hbWUiOiJ0ZXN0dXNlciIsImlzQWN0aXZlIjoiVHJ1ZSIsInJvbGUiOiJVc2VyIiwibmJmIjoxNzUzMDIyOTc5LCJleHAiOjE3NTMwMjM4NzksImlhdCI6MTc1MzAyMjk3OSwiaXNzIjoiVGlja2V0aW5nU3lzdGVtIiwiYXVkIjoiVGlja2V0aW5nU3lzdGVtLlVzZXJzIn0.4Hg6eRsWSBoqEAsTrz7lyiWYXtYExhhsWLrfpruQpJw"
 ```
 
 **Expected Result**: JSON array of events
 
-### Step 5: Purchase Tickets
+### Step 5: Test Event Management (New in Consolidated Service)
+The Ticketing service now includes Events functionality. Test creating and managing events:
+
+```bash
+# Create a new event (Admin operation)
+curl -X POST http://localhost:5002/api/events -H "Content-Type: application/json" -H "Authorization: Bearer YOUR_TOKEN_HERE" -d "{\"name\":\"Test Concert\",\"date\":\"2025-08-15T20:00:00\",\"duration\":\"02:30:00\",\"startTime\":\"20:00:00\",\"capacity\":1000,\"location\":\"New York\",\"eventType\":\"Concert\"}"
+
+# Search events by location
+curl -X GET "http://localhost:5002/api/events/search?location=New York" -H "Authorization: Bearer YOUR_TOKEN_HERE"
+
+# Get specific event by ID
+curl -X GET http://localhost:5002/api/events/1 -H "Authorization: Bearer YOUR_TOKEN_HERE"
+```
+
+**Expected Result**: Event creation, search, and retrieval work correctly
+
+### Step 6: Purchase Tickets
 Replace `YOUR_TOKEN_HERE` with your actual token:
 
 ```bash
-curl -X POST http://localhost:5003/api/tickets/purchase -H "Content-Type: application/json" -H "Authorization: Bearer YOUR_TOKEN_HERE" -d "{\"eventId\":1,\"quantity\":2,\"paymentRequest\":{\"cardNumber\":\"4111111111111111\",\"expiryMonth\":12,\"expiryYear\":2025,\"cvv\":\"123\",\"cardHolderName\":\"Test User\",\"amount\":100.00}}"
+curl -X POST http://localhost:5002/api/tickets/purchase -H "Content-Type: application/json" -H "Authorization: Bearer YOUR_TOKEN_HERE" -d "{\"eventId\":1,\"quantity\":2,\"paymentRequest\":{\"cardNumber\":\"4111111111111111\",\"expiryMonth\":12,\"expiryYear\":2025,\"cvv\":\"123\",\"cardHolderName\":\"Test User\",\"amount\":100.00}}"
 ```
 
 **Expected Result**: 200 OK with purchase confirmation including transaction ID
 **Key Point**: This tests the complete flow including payment validation and RabbitMQ messaging!
 
-### Step 6: Check RabbitMQ Queue Statistics
+### Step 7: Check RabbitMQ Queue Statistics
 ```bash
-curl -X GET http://localhost:5003/api/tickets/queue-stats -H "Authorization: Bearer YOUR_TOKEN_HERE"
+curl -X GET http://localhost:5002/api/tickets/queue-stats -H "Authorization: Bearer YOUR_TOKEN_HERE"
 ```
 
 **Expected Result**: JSON with queue statistics showing message counts
 
-### Step 7: Monitor RabbitMQ Management Interface
+### Step 8: Monitor RabbitMQ Management Interface
 1. Open browser to: http://localhost:15672
 2. Login with:
    - Username: `ticketinguser`
@@ -88,19 +107,19 @@ curl -X GET http://localhost:5003/api/tickets/queue-stats -H "Authorization: Bea
 ### Valid Cards (Should Succeed)
 ```bash
 # Visa
-curl -X POST http://localhost:5003/api/tickets/purchase -H "Content-Type: application/json" -H "Authorization: Bearer YOUR_TOKEN_HERE" -d "{\"eventId\":1,\"quantity\":1,\"paymentRequest\":{\"cardNumber\":\"4111111111111111\",\"expiryMonth\":12,\"expiryYear\":2025,\"cvv\":\"123\",\"cardHolderName\":\"Test User\",\"amount\":50.00}}"
+curl -X POST http://localhost:5002/api/tickets/purchase -H "Content-Type: application/json" -H "Authorization: Bearer YOUR_TOKEN_HERE" -d "{\"eventId\":1,\"quantity\":1,\"paymentRequest\":{\"cardNumber\":\"4111111111111111\",\"expiryMonth\":12,\"expiryYear\":2025,\"cvv\":\"123\",\"cardHolderName\":\"Test User\",\"amount\":50.00}}"
 
 # MasterCard  
-curl -X POST http://localhost:5003/api/tickets/purchase -H "Content-Type: application/json" -H "Authorization: Bearer YOUR_TOKEN_HERE" -d "{\"eventId\":1,\"quantity\":1,\"paymentRequest\":{\"cardNumber\":\"5555555555554444\",\"expiryMonth\":12,\"expiryYear\":2025,\"cvv\":\"123\",\"cardHolderName\":\"Test User\",\"amount\":50.00}}"
+curl -X POST http://localhost:5002/api/tickets/purchase -H "Content-Type: application/json" -H "Authorization: Bearer YOUR_TOKEN_HERE" -d "{\"eventId\":1,\"quantity\":1,\"paymentRequest\":{\"cardNumber\":\"5555555555554444\",\"expiryMonth\":12,\"expiryYear\":2025,\"cvv\":\"123\",\"cardHolderName\":\"Test User\",\"amount\":50.00}}"
 ```
 
 ### Invalid Cards (Should Fail)
 ```bash
 # Invalid Luhn check
-curl -X POST http://localhost:5003/api/tickets/purchase -H "Content-Type: application/json" -H "Authorization: Bearer YOUR_TOKEN_HERE" -d "{\"eventId\":1,\"quantity\":1,\"paymentRequest\":{\"cardNumber\":\"1234567890123456\",\"expiryMonth\":12,\"expiryYear\":2025,\"cvv\":\"123\",\"cardHolderName\":\"Test User\",\"amount\":50.00}}"
+curl -X POST http://localhost:5002/api/tickets/purchase -H "Content-Type: application/json" -H "Authorization: Bearer YOUR_TOKEN_HERE" -d "{\"eventId\":1,\"quantity\":1,\"paymentRequest\":{\"cardNumber\":\"1234567890123456\",\"expiryMonth\":12,\"expiryYear\":2025,\"cvv\":\"123\",\"cardHolderName\":\"Test User\",\"amount\":50.00}}"
 
 # Declined card
-curl -X POST http://localhost:5003/api/tickets/purchase -H "Content-Type: application/json" -H "Authorization: Bearer YOUR_TOKEN_HERE" -d "{\"eventId\":1,\"quantity\":1,\"paymentRequest\":{\"cardNumber\":\"4000000000000002\",\"expiryMonth\":12,\"expiryYear\":2025,\"cvv\":\"123\",\"cardHolderName\":\"Test User\",\"amount\":50.00}}"
+curl -X POST http://localhost:5002/api/tickets/purchase -H "Content-Type: application/json" -H "Authorization: Bearer YOUR_TOKEN_HERE" -d "{\"eventId\":1,\"quantity\":1,\"paymentRequest\":{\"cardNumber\":\"4000000000000002\",\"expiryMonth\":12,\"expiryYear\":2025,\"cvv\":\"123\",\"cardHolderName\":\"Test User\",\"amount\":50.00}}"
 ```
 
 ## What to Verify
@@ -133,17 +152,58 @@ curl -X POST http://localhost:5003/api/tickets/purchase -H "Content-Type: applic
 - Multiple simultaneous purchases handled correctly
 - Database consistency maintained
 
+### 6. Consolidated Service Benefits
+- Single service handles both events and tickets
+- Shared Redis caching for related data
+- Unified logging and error handling
+- Better performance due to no inter-service calls
+
+## Automated Testing Scripts
+
+For easier testing, use the provided PowerShell scripts:
+
+```powershell
+# Comprehensive system test
+.\test-system.ps1
+
+# Simple validation test
+.\simple-test.ps1
+
+# Manual interactive test runner
+.\test-system.bat
+```
+
+These scripts automatically test all the manual steps above and provide detailed output.
+
 ## Troubleshooting
 
 ### Services Not Responding
 1. Check if services are running: `netstat -an | findstr ":500"`
 2. Check service logs for errors
 3. Verify database connection strings
+4. Ensure only 2 services are running (Authentication on 5001, Ticketing+Events on 5002)
+
+### Redis Configuration Error ("configuration is empty")
+If you see `System.ArgumentException: is empty (Parameter 'configuration')`:
+
+**Root Cause:** Service started before DI configuration was properly set up.
+
+**Solution:**
+1. **Stop the Ticketing service** (Ctrl+C in the terminal)
+2. **Ensure Redis is running**: `docker-compose up -d redis`
+3. **Restart the service**: `dotnet run --project src\TicketingSystem.Ticketing`
+4. **Test connectivity**: `curl http://localhost:5002/health`
+
+**Quick diagnostic:** Run `.\quick-redis-check.ps1` to check Redis and service status.
 
 ### Authentication Issues
 1. Verify user was created in database
 2. Check JWT token format
-3. Ensure token is not expired
+3. Ensure token is not expired (tokens expire in 15 minutes)
+4. **Get a fresh token if expired:**
+   ```bash
+   curl -X POST http://localhost:5001/api/auth/login -H "Content-Type: application/json" -d "{\"email\":\"testuser@example.com\",\"password\":\"TestPassword1453!\"}"
+   ```
 
 ### Payment Failures
 1. Verify card number passes Luhn check

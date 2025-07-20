@@ -381,6 +381,57 @@ namespace TicketingSystem.Ticketing.Services
             }
         }
 
+        /// <summary>
+        /// Delete event from Redis cache
+        /// </summary>
+        public async Task<bool> DeleteEventAsync(int eventId)
+        {
+            try
+            {
+                var eventKey = $"{_keyPrefix}event:{eventId}";
+                var capacityKey = $"{_keyPrefix}event_capacity:{eventId}";
+                
+                var tasks = new[]
+                {
+                    _database.KeyDeleteAsync(eventKey),
+                    _database.KeyDeleteAsync(capacityKey)
+                };
+
+                var results = await Task.WhenAll(tasks);
+                var deleted = results.Any(r => r);
+                
+                if (deleted)
+                {
+                    _logger.LogDebug("Event {EventId} and its capacity deleted from Redis", eventId);
+                }
+                
+                return deleted;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error deleting event {EventId} from Redis", eventId);
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Set event capacity in Redis
+        /// </summary>
+        public async Task SetEventCapacityAsync(int eventId, int capacity)
+        {
+            try
+            {
+                var key = $"{_keyPrefix}event_capacity:{eventId}";
+                await _database.StringSetAsync(key, capacity.ToString());
+                _logger.LogDebug("Event capacity for {EventId} set to {Capacity}", eventId, capacity);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error setting event capacity for {EventId} in Redis", eventId);
+                throw;
+            }
+        }
+
         public void Dispose()
         {
             _redis?.Dispose();

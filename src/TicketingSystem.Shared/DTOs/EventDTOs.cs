@@ -25,9 +25,12 @@ namespace TicketingSystem.Shared.DTOs
     public class EventSearchRequest
     {
         public string? Location { get; set; }
-        public DateTime? FromDate { get; set; }
-        public DateTime? ToDate { get; set; }
+        public string? EventName { get; set; }
+        public DateTime? DateFrom { get; set; }
+        public DateTime? DateTo { get; set; }
         public string? EventType { get; set; }
+        public string? SortBy { get; set; } = "date";
+        public bool SortDescending { get; set; } = false;
         public int PageNumber { get; set; } = 1;
         public int PageSize { get; set; } = 10;
     }

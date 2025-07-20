@@ -109,7 +109,7 @@ function Test-Infrastructure {
     # Test service health endpoints
     $services = @(
         @{ Name = "Authentication"; Url = "http://localhost:5001/health" }
-        @{ Name = "Events"; Url = "http://localhost:5002/health" }
+        @{ Name = "Ticketing & Events"; Url = "http://localhost:5002/health" }
         @{ Name = "Ticketing"; Url = "http://localhost:5003/health" }
     )
     

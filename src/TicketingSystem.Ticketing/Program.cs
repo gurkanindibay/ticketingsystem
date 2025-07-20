@@ -17,12 +17,22 @@ builder.Services.AddHealthChecks();
 // Add Entity Framework Core with PostgreSQL
 builder.Services.AddDbContext<TicketingDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection") ?? 
-        "Host=localhost;Database=TicketingSystem;Username=postgres;Password=password"));
+        "Host=localhost;Database=ticketingdb;Username=ticketinguser;Password=ticketingpass123"));
+
+// Configure Redis settings
+builder.Services.Configure<TicketingSystem.Shared.Configuration.RedisSettings>(
+    builder.Configuration.GetSection("RedisSettings"));
+
+// Configure RabbitMQ settings
+builder.Services.Configure<TicketingSystem.Shared.Configuration.RabbitMQSettings>(
+    builder.Configuration.GetSection("RabbitMQSettings"));
 
 // Add Redis connection
 builder.Services.AddSingleton<IConnectionMultiplexer>(provider =>
 {
-    var configuration = builder.Configuration.GetConnectionString("Redis") ?? "localhost:6379";
+    var configuration = builder.Configuration.GetConnectionString("Redis") ?? 
+                       builder.Configuration["RedisSettings:ConnectionString"] ?? 
+                       "localhost:6379";
     return ConnectionMultiplexer.Connect(configuration);
 });
 
@@ -42,6 +52,7 @@ builder.Services.AddScoped<IPaymentService, MockPaymentService>();
 builder.Services.AddScoped<IRedisService, RedisService>();
 builder.Services.AddScoped<IRabbitMQService, RabbitMQService>();
 builder.Services.AddScoped<ITicketService, TicketService>();
+builder.Services.AddScoped<IEventService, EventService>();
 
 // Configure Swagger/OpenAPI
 builder.Services.AddEndpointsApiExplorer();
@@ -49,9 +60,9 @@ builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new OpenApiInfo
     {
-        Title = "Ticketing System - Ticketing API",
+        Title = "Ticketing System - Ticketing & Events API",
         Version = "v1",
-        Description = "Ticketing microservice for the Ticketing System - handles ticket purchases, cancellations, and user ticket management",
+        Description = "Consolidated microservice for the Ticketing System - handles ticket purchases, cancellations, user ticket management, and event operations",
         Contact = new OpenApiContact
         {
             Name = "Ticketing System Team",

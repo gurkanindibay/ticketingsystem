@@ -4,7 +4,7 @@ Write-Host "=== Ticketing System Manual Tests ===" -ForegroundColor Cyan
 # Test 1: Infrastructure Health Check
 Write-Host "`n🔧 Testing Infrastructure..." -ForegroundColor Yellow
 
-$services = @("http://localhost:5001", "http://localhost:5002", "http://localhost:5003")
+$services = @("http://localhost:5001", "http://localhost:5002")
 foreach ($service in $services) {
     try {
         $response = Invoke-WebRequest -Uri "$service/health" -Method GET -TimeoutSec 5 -UseBasicParsing
@@ -75,7 +75,7 @@ $purchaseData = @{
 
 try {
     $headers = @{ Authorization = "Bearer $token" }
-    $purchase = Invoke-RestMethod -Uri "http://localhost:5003/api/tickets/purchase" -Method POST -Body $purchaseData -ContentType "application/json" -Headers $headers
+    $purchase = Invoke-RestMethod -Uri "http://localhost:5002/api/tickets/purchase" -Method POST -Body $purchaseData -ContentType "application/json" -Headers $headers
     Write-Host "✅ Ticket Purchase: Success" -ForegroundColor Green
     Write-Host "🎫 Purchase ID: $($purchase.transactionId)" -ForegroundColor Cyan
 }
@@ -93,7 +93,7 @@ catch {
 Write-Host "`n🐰 Testing RabbitMQ..." -ForegroundColor Yellow
 try {
     $headers = @{ Authorization = "Bearer $token" }
-    $stats = Invoke-RestMethod -Uri "http://localhost:5003/api/tickets/queue-stats" -Method GET -Headers $headers
+    $stats = Invoke-RestMethod -Uri "http://localhost:5002/api/tickets/queue-stats" -Method GET -Headers $headers
     Write-Host "✅ RabbitMQ Stats: Retrieved" -ForegroundColor Green
     Write-Host "📊 Capacity Queue Messages: $($stats.capacity_queue_messages)" -ForegroundColor Cyan
     Write-Host "📊 Transaction Queue Messages: $($stats.transaction_queue_messages)" -ForegroundColor Cyan

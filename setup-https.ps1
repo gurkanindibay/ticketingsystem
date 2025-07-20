@@ -16,23 +16,19 @@ if ($LASTEXITCODE -eq 0) {
     Write-Host "`n📋 Available endpoints after starting services:" -ForegroundColor Cyan
     Write-Host "HTTP URLs (Recommended for development):" -ForegroundColor White
     Write-Host "  • Authentication Service: http://localhost:5001/swagger" -ForegroundColor Gray
-    Write-Host "  • Events Service:         http://localhost:5002/swagger" -ForegroundColor Gray
-    Write-Host "  • Ticketing Service:      http://localhost:5003/swagger" -ForegroundColor Gray
+    Write-Host "  • Ticketing & Events:     http://localhost:5002/swagger" -ForegroundColor Gray
     
     Write-Host "`nHTTPS URLs (After certificate setup):" -ForegroundColor White
     Write-Host "  • Authentication Service: https://localhost:7001/swagger" -ForegroundColor Gray
-    Write-Host "  • Events Service:         https://localhost:7002/swagger" -ForegroundColor Gray
-    Write-Host "  • Ticketing Service:      https://localhost:7003/swagger" -ForegroundColor Gray
+    Write-Host "  • Ticketing & Events:     https://localhost:7002/swagger" -ForegroundColor Gray
     
     Write-Host "`n🚀 How to run services:" -ForegroundColor Cyan
     Write-Host "HTTP (Default Profile):" -ForegroundColor White
     Write-Host "  dotnet run --project src\TicketingSystem.Authentication" -ForegroundColor Gray
-    Write-Host "  dotnet run --project src\TicketingSystem.Events" -ForegroundColor Gray
     Write-Host "  dotnet run --project src\TicketingSystem.Ticketing" -ForegroundColor Gray
     
     Write-Host "`nHTTPS:" -ForegroundColor White
     Write-Host "  dotnet run --project src\TicketingSystem.Authentication --launch-profile Development-HTTPS" -ForegroundColor Gray
-    Write-Host "  dotnet run --project src\TicketingSystem.Events --launch-profile Development-HTTPS" -ForegroundColor Gray
     Write-Host "  dotnet run --project src\TicketingSystem.Ticketing --launch-profile Development-HTTPS" -ForegroundColor Gray
     
 } else {
@@ -41,8 +37,7 @@ if ($LASTEXITCODE -eq 0) {
     
     Write-Host "`n📋 HTTP endpoints (Always available):" -ForegroundColor Cyan
     Write-Host "  • Authentication Service: http://localhost:5001/swagger" -ForegroundColor Gray
-    Write-Host "  • Events Service:         http://localhost:5002/swagger" -ForegroundColor Gray
-    Write-Host "  • Ticketing Service:      http://localhost:5003/swagger" -ForegroundColor Gray
+    Write-Host "  • Ticketing & Events:     http://localhost:5002/swagger" -ForegroundColor Gray
 }
 
 Write-Host "`n💡 Tips:" -ForegroundColor Cyan

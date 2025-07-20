@@ -12,7 +12,7 @@ This document outlines the requirements for a Ticketmaster-like ticketing servic
 
 ## Nonfunctional Requirements
 - **Scalability and Concurrency:** Handle 1M daily users, with 10,000 concurrent ticket purchases (90% views, 10% sales: 9000 view operations, 1000 ticket sales).
-- **Microservices Architecture:** Organize services by functional areas (e.g., ticketing, event listing) for modularity.
+- **Microservices Architecture:** Organize services by functional areas; ticketing, authentication for modularity.
 - **Search Latency:** All event listing searches (by location, name, type, date) return in <500ms, even during peak load.
 - **High Availability:** Maintain 99.9% uptime for uninterrupted ticket purchases.
 - **Secure Transactions:** Use HTTPS for encrypted data transfer, HMACSHA512 for transaction ID generation, and require user authentication.

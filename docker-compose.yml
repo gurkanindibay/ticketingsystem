@@ -63,33 +63,12 @@ services:
     networks:
       - ticketing-network
 
-  # Events Service
-  events-service:
-    build:
-      context: .
-      dockerfile: src/TicketingSystem.Events/Dockerfile
-    container_name: ticketing-events
-    environment:
-      - ASPNETCORE_ENVIRONMENT=Development
-      - ConnectionStrings__DefaultConnection=Host=postgres;Database=ticketingdb;Username=ticketinguser;Password=ticketingpass123;
-      - JwtSettings__SecretKey=YourSuperSecretKeyThatIsAtLeast32CharactersLong12345
-      - JwtSettings__Issuer=TicketingSystem
-      - JwtSettings__Audience=TicketingSystem.Users
-      - RedisSettings__ConnectionString=redis:6379
-    ports:
-      - "5002:80"
-    depends_on:
-      - postgres
-      - redis
-    networks:
-      - ticketing-network
-
-  # Ticketing Service
+  # Ticketing Service (includes Events functionality)
   ticketing-service:
     build:
       context: .
       dockerfile: src/TicketingSystem.Ticketing/Dockerfile
-    container_name: ticketing-tickets
+    container_name: ticketing-service
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ConnectionStrings__DefaultConnection=Host=postgres;Database=ticketingdb;Username=ticketinguser;Password=ticketingpass123;
@@ -101,7 +80,7 @@ services:
       - RabbitMQSettings__Username=ticketinguser
       - RabbitMQSettings__Password=ticketingpass123
     ports:
-      - "5003:80"
+      - "5002:80"
     depends_on:
       - postgres
       - redis

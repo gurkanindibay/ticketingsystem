@@ -20,6 +20,11 @@ namespace TicketingSystem.Ticketing.Services
         Task SetEventAsync(Event eventData, TimeSpan? expiry = null);
 
         /// <summary>
+        /// Delete event from Redis cache
+        /// </summary>
+        Task<bool> DeleteEventAsync(int eventId);
+
+        /// <summary>
         /// Get event tickets from Redis cache
         /// </summary>
         Task<List<EventTicket>?> GetEventTicketsAsync(string userId);
@@ -48,6 +53,11 @@ namespace TicketingSystem.Ticketing.Services
         /// Get current event capacity from Redis
         /// </summary>
         Task<int?> GetEventCapacityAsync(int eventId);
+
+        /// <summary>
+        /// Set event capacity in Redis
+        /// </summary>
+        Task SetEventCapacityAsync(int eventId, int capacity);
 
         /// <summary>
         /// Update event capacity in Redis with atomic operation
