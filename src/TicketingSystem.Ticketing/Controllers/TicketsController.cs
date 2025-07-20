@@ -14,11 +14,15 @@ namespace TicketingSystem.Ticketing.Controllers
     public class TicketsController : ControllerBase
     {
         private readonly ITicketService _ticketService;
+        private readonly IRabbitMQService _rabbitMQService;
+        private readonly IMessageStatsService _messageStatsService;
         private readonly ILogger<TicketsController> _logger;
 
-        public TicketsController(ITicketService ticketService, ILogger<TicketsController> logger)
+        public TicketsController(ITicketService ticketService, IRabbitMQService rabbitMQService, IMessageStatsService messageStatsService, ILogger<TicketsController> logger)
         {
             _ticketService = ticketService;
+            _rabbitMQService = rabbitMQService;
+            _messageStatsService = messageStatsService;
             _logger = logger;
         }
         /// <summary>
@@ -223,6 +227,30 @@ namespace TicketingSystem.Ticketing.Controllers
                 _logger.LogError(ex, "Error cancelling ticket {TransactionId}", transactionId);
                 return StatusCode(500, ApiResponse.ErrorResponse(
                     "An error occurred while cancelling the ticket"));
+            }
+        }
+
+        /// <summary>
+        /// Get RabbitMQ queue statistics for monitoring
+        /// </summary>
+        /// <returns>Queue status information</returns>
+        [HttpGet("admin/queue-status")]
+        public async Task<ActionResult<ApiResponse<object>>> GetQueueStatus()
+        {
+            try
+            {
+                var queueInfo = await _rabbitMQService.GetQueueStatsAsync();
+                return Ok(new ApiResponse<Dictionary<string, object>> 
+                { 
+                    Success = true, 
+                    Data = queueInfo, 
+                    Message = "Queue status retrieved" 
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving queue status");
+                return StatusCode(500, ApiResponse.ErrorResponse("Error retrieving queue status"));
             }
         }
     }

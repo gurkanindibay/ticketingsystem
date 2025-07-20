@@ -20,6 +20,21 @@ namespace TicketingSystem.Ticketing.Services
         /// Publish ticket transaction message
         /// </summary>
         Task PublishTicketTransactionAsync(TicketTransactionMessage message);
+
+        /// <summary>
+        /// Subscribe to capacity update messages for processing
+        /// </summary>
+        Task SubscribeToCapacityUpdatesAsync(Func<CapacityUpdateMessage, Task> messageHandler);
+
+        /// <summary>
+        /// Subscribe to transaction messages for processing
+        /// </summary>
+        Task SubscribeToTransactionMessagesAsync(Func<TicketTransactionMessage, Task> messageHandler);
+
+        /// <summary>
+        /// Get queue statistics for monitoring
+        /// </summary>
+        Task<Dictionary<string, object>> GetQueueStatsAsync();
     }
 
     /// <summary>

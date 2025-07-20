@@ -68,7 +68,11 @@ builder.Services.AddScoped<IPaymentService, MockPaymentService>();
 builder.Services.AddScoped<IRedisService, RedisService>();
 builder.Services.AddScoped<IRabbitMQService, RabbitMQService>();
 builder.Services.AddScoped<ITicketService, TicketService>();
+builder.Services.AddSingleton<IMessageStatsService, MessageStatsService>();
 builder.Services.AddScoped<IEventService, EventService>();
+
+// Register RabbitMQ background service to start consumers
+builder.Services.AddHostedService<RabbitMQBackgroundService>();
 
 // JWT authentication configuration
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
