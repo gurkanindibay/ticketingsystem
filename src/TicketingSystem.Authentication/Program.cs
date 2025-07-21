@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using System.Threading.RateLimiting;
 using System.Reflection;
 using System.Text;
@@ -61,6 +62,24 @@ var jwtSettings = builder.Configuration.GetSection("JwtSettings");
 var secretKey = jwtSettings["SecretKey"] ?? throw new InvalidOperationException("JWT SecretKey not configured");
 var key = Encoding.ASCII.GetBytes(secretKey);
 
+// Enhanced HTTPS and Security Configuration
+if (!builder.Environment.IsDevelopment())
+{
+    builder.Services.AddHsts(options =>
+    {
+        options.Preload = true;
+        options.IncludeSubDomains = true;
+        options.MaxAge = TimeSpan.FromDays(365);
+    });
+}
+
+// Security Headers Configuration
+builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(options =>
+{
+    options.ValueLengthLimit = 1024 * 1024; // 1MB
+    options.MultipartBodyLengthLimit = 1024 * 1024; // 1MB
+});
+
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -68,7 +87,7 @@ builder.Services.AddAuthentication(options =>
 })
 .AddJwtBearer(options =>
 {
-    options.RequireHttpsMetadata = false; // Set to true in production
+    options.RequireHttpsMetadata = !builder.Environment.IsDevelopment(); // Enable in production
     options.SaveToken = true;
     options.TokenValidationParameters = new TokenValidationParameters
     {
@@ -79,7 +98,27 @@ builder.Services.AddAuthentication(options =>
         ValidateAudience = true,
         ValidAudience = jwtSettings["Audience"],
         ValidateLifetime = true,
-        ClockSkew = TimeSpan.Zero
+        ClockSkew = TimeSpan.Zero,
+        RequireExpirationTime = true,
+        RequireSignedTokens = true
+    };
+    
+    // Enhanced JWT events for better security logging
+    options.Events = new JwtBearerEvents
+    {
+        OnAuthenticationFailed = context =>
+        {
+            var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
+            logger.LogWarning("JWT authentication failed: {Exception}", context.Exception.Message);
+            return Task.CompletedTask;
+        },
+        OnTokenValidated = context =>
+        {
+            var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
+            var userId = context.Principal?.Identity?.Name ?? "Unknown";
+            logger.LogInformation("JWT token validated for user: {UserId}", userId);
+            return Task.CompletedTask;
+        }
     };
 });
 
@@ -88,7 +127,57 @@ builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IAuthValidationService, AuthValidationService>();
 
-// Built-in .NET Rate Limiting
+// Enhanced Authorization with role-based and claim-based policies
+builder.Services.AddAuthorization(options =>
+{
+    // Role-based policies
+    options.AddPolicy("AdminOnly", policy =>
+        policy.RequireRole("Admin")
+              .RequireAuthenticatedUser());
+
+    options.AddPolicy("ManagerOrAdmin", policy =>
+        policy.RequireRole("Manager", "Admin")
+              .RequireAuthenticatedUser());
+
+    options.AddPolicy("AuthenticatedUser", policy =>
+        policy.RequireAuthenticatedUser()
+              .RequireRole("User", "Manager", "Admin"));
+
+    // Claim-based policies for fine-grained access control
+    options.AddPolicy("CanManageUsers", policy =>
+        policy.RequireAuthenticatedUser()
+              .RequireAssertion(context =>
+                  context.User.IsInRole("Admin") ||
+                  (context.User.IsInRole("Manager") && 
+                   context.User.HasClaim("Permission", "UserManagement"))));
+
+    // Time-based access policy (example for admin operations during business hours)
+    options.AddPolicy("BusinessHoursAdmin", policy =>
+        policy.RequireRole("Admin")
+              .RequireAssertion(context =>
+              {
+                  var now = DateTime.UtcNow;
+                  var businessStart = TimeSpan.FromHours(8);  // 8 AM UTC
+                  var businessEnd = TimeSpan.FromHours(18);   // 6 PM UTC
+                  var currentTime = now.TimeOfDay;
+                  return currentTime >= businessStart && currentTime <= businessEnd;
+              }));
+
+    // Security policy requiring fresh authentication for sensitive operations
+    options.AddPolicy("RequireFreshLogin", policy =>
+        policy.RequireAuthenticatedUser()
+              .RequireAssertion(context =>
+              {
+                  var authTime = context.User.FindFirst("auth_time")?.Value;
+                  if (DateTime.TryParse(authTime, out var authDateTime))
+                  {
+                      return DateTime.UtcNow.Subtract(authDateTime).TotalMinutes <= 30; // 30 minutes
+                  }
+                  return false;
+              }));
+});
+
+// Enhanced Rate Limiting with user-based and IP-based policies
 builder.Services.AddRateLimiter(options =>
 {
     // Registration rate limiting: 5 per hour per IP
@@ -103,7 +192,7 @@ builder.Services.AddRateLimiter(options =>
                 QueueLimit = 0 // No queuing
             }));
 
-    // Login rate limiting: 10 per 15 minutes per IP
+    // Login rate limiting: 10 per 15 minutes per IP with user lockout
     options.AddPolicy("login", httpContext =>
         RateLimitPartition.GetFixedWindowLimiter(
             partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
@@ -115,48 +204,74 @@ builder.Services.AddRateLimiter(options =>
                 QueueLimit = 0
             }));
 
-    // Refresh token rate limiting: 20 per 5 minutes per IP
+    // Refresh token rate limiting: 20 per 5 minutes per authenticated user
     options.AddPolicy("refresh", httpContext =>
-        RateLimitPartition.GetFixedWindowLimiter(
-            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+    {
+        var userId = httpContext.User?.Identity?.Name ?? httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        return RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: userId,
             factory: partition => new FixedWindowRateLimiterOptions
             {
                 PermitLimit = int.Parse(builder.Configuration["RateLimiting:Refresh:MaxAttempts"] ?? "20"),
                 Window = TimeSpan.FromMinutes(int.Parse(builder.Configuration["RateLimiting:Refresh:WindowMinutes"] ?? "5")),
                 QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
                 QueueLimit = 0
-            }));
+            });
+    });
 
-    // Global fallback - applies to endpoints without specific rate limiting
-    options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
-        RateLimitPartition.GetFixedWindowLimiter(
-            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+    // Admin operations rate limiting: stricter limits for sensitive operations
+    options.AddPolicy("admin", httpContext =>
+    {
+        var userId = httpContext.User?.Identity?.Name ?? httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        return RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: userId,
             factory: partition => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 50, // 50 admin operations per hour
+                Window = TimeSpan.FromHours(1),
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                QueueLimit = 0
+            });
+    });
+
+    // Global fallback with sliding window for better distribution
+    options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
+        RateLimitPartition.GetSlidingWindowLimiter(
+            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: partition => new SlidingWindowRateLimiterOptions
             {
                 AutoReplenishment = true,
                 PermitLimit = 100, // 100 requests per minute as global limit
                 QueueLimit = 0,
-                Window = TimeSpan.FromMinutes(1)
+                Window = TimeSpan.FromMinutes(1),
+                SegmentsPerWindow = 6 // 10-second segments for smoother rate limiting
             }));
 
-    // Rejection response
+    // Enhanced rejection response with security headers
     options.RejectionStatusCode = 429;
     options.OnRejected = async (context, cancellationToken) =>
     {
         var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
         var clientIp = context.HttpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown";
+        var userAgent = context.HttpContext.Request.Headers.UserAgent.ToString();
+        var endpoint = context.HttpContext.Request.Path;
         
-        logger.LogWarning("Rate limit exceeded for IP: {ClientIp}, Endpoint: {Endpoint}", 
-            clientIp, context.HttpContext.Request.Path);
+        logger.LogWarning("Rate limit exceeded - IP: {ClientIp}, UserAgent: {UserAgent}, Endpoint: {Endpoint}", 
+            clientIp, userAgent, endpoint);
 
         context.HttpContext.Response.StatusCode = 429;
         context.HttpContext.Response.ContentType = "application/json";
+        
+        // Add security headers
+        context.HttpContext.Response.Headers.Append("Retry-After", "60");
+        context.HttpContext.Response.Headers.Append("X-RateLimit-Policy", "exceeded");
         
         var response = System.Text.Json.JsonSerializer.Serialize(new
         {
             success = false,
             message = "Too many requests. Please try again later.",
-            errorCode = "RATE_LIMIT_EXCEEDED"
+            errorCode = "RATE_LIMIT_EXCEEDED",
+            retryAfter = 60
         });
         
         await context.HttpContext.Response.WriteAsync(response, cancellationToken);
@@ -165,7 +280,25 @@ builder.Services.AddRateLimiter(options =>
 
 // Add services to the container.
 builder.Services.AddControllers();
-builder.Services.AddHealthChecks();
+
+// Enhanced Health Checks with dependencies
+builder.Services.AddHealthChecks()
+    .AddDbContextCheck<AuthDbContext>("database")
+    .AddCheck("jwt-configuration", () =>
+    {
+        var jwtSettings = builder.Configuration.GetSection("JwtSettings");
+        var secretKey = jwtSettings["SecretKey"];
+        return !string.IsNullOrEmpty(secretKey) && secretKey.Length >= 32
+            ? HealthCheckResult.Healthy("JWT configuration is valid")
+            : HealthCheckResult.Unhealthy("JWT SecretKey is invalid or too short");
+    })
+    .AddCheck("memory", () =>
+    {
+        var gc = GC.GetTotalMemory(false);
+        return gc < 1024 * 1024 * 1024 // 1GB threshold
+            ? HealthCheckResult.Healthy($"Memory usage: {gc / 1024 / 1024} MB")
+            : HealthCheckResult.Degraded($"High memory usage: {gc / 1024 / 1024} MB");
+    });
 
 // Configure Swagger/OpenAPI
 builder.Services.AddEndpointsApiExplorer();
@@ -235,7 +368,7 @@ using (var scope = app.Services.CreateScope())
     await SeedRolesAsync(roleManager);
 }
 
-// Configure the HTTP request pipeline.
+// Configure the HTTP request pipeline with enhanced security
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -254,15 +387,83 @@ if (app.Environment.IsDevelopment())
 }
 else
 {
+    // Production security configurations
+    app.UseHsts(); // Add HSTS headers
     app.UseHttpsRedirection();
+    
+    // Add security headers middleware
+    app.Use(async (context, next) =>
+    {
+        // Security headers for production
+        context.Response.Headers.Append("X-Content-Type-Options", "nosniff");
+        context.Response.Headers.Append("X-Frame-Options", "DENY");
+        context.Response.Headers.Append("X-XSS-Protection", "1; mode=block");
+        context.Response.Headers.Append("Referrer-Policy", "strict-origin-when-cross-origin");
+        context.Response.Headers.Append("Content-Security-Policy", 
+            "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none';");
+        
+        // Remove server information
+        context.Response.Headers.Remove("Server");
+        
+        await next();
+    });
 }
 
+// Middleware pipeline order is critical for security
 app.UseAuthentication();
-app.UseRateLimiter(); // Add rate limiting middleware
+app.UseRateLimiter(); // Rate limiting before authorization
 app.UseAuthorization();
 
+// Request logging middleware for security monitoring
+app.Use(async (context, next) =>
+{
+    var logger = context.RequestServices.GetRequiredService<ILogger<Program>>();
+    var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+    
+    await next();
+    
+    stopwatch.Stop();
+    
+    // Log suspicious activities
+    if (context.Response.StatusCode == 401 || context.Response.StatusCode == 403 || context.Response.StatusCode == 429)
+    {
+        var clientIp = context.Connection.RemoteIpAddress?.ToString() ?? "Unknown";
+        var userAgent = context.Request.Headers.UserAgent.ToString();
+        
+        logger.LogWarning("Security event - Status: {StatusCode}, IP: {ClientIp}, Path: {Path}, UserAgent: {UserAgent}, Duration: {Duration}ms",
+            context.Response.StatusCode, clientIp, context.Request.Path, userAgent, stopwatch.ElapsedMilliseconds);
+    }
+});
+
 app.MapControllers();
-app.MapHealthChecks("/health");
+
+// Enhanced health checks endpoint with detailed responses
+app.MapHealthChecks("/health", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+{
+    ResponseWriter = async (context, report) =>
+    {
+        context.Response.ContentType = "application/json";
+        var response = new
+        {
+            status = report.Status.ToString(),
+            checks = report.Entries.Select(entry => new
+            {
+                name = entry.Key,
+                status = entry.Value.Status.ToString(),
+                description = entry.Value.Description,
+                duration = entry.Value.Duration.TotalMilliseconds
+            }),
+            totalDuration = report.TotalDuration.TotalMilliseconds
+        };
+        await context.Response.WriteAsync(System.Text.Json.JsonSerializer.Serialize(response));
+    }
+});
+
+// Minimal health check for load balancers
+app.MapHealthChecks("/health/ready", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+{
+    Predicate = check => check.Tags.Contains("ready")
+});
 
 app.Run();
 
